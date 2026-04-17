@@ -38,8 +38,11 @@ npm run dev
 1. Copy `.env.local.example` to `.env.local`.
 2. Put your **dev** Supabase URL and anon key in `.env.local`.
 3. Keep `VITE_ALLOW_PROD_DATA_IN_DEV="false"` (or unset).
+4. Keep `VITE_BLOCK_WRITES_IN_DEV="true"` (default safety).
 
 This project has a startup safety check that blocks localhost if it is pointed to the production Supabase project.
+
+When localhost still points to production Supabase, write operations are blocked in development by default (except auth endpoints), so browsing works but accidental data mutations are prevented.
 
 ### Controlled Production Deploy
 

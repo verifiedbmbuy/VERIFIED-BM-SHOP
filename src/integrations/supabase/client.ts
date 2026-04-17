@@ -8,22 +8,71 @@ const PRODUCTION_SUPABASE_URL = 'https://xukkejkvcgixogvbllmf.supabase.co';
 
 const isDev = import.meta.env.DEV;
 const allowProdDataInDev = import.meta.env.VITE_ALLOW_PROD_DATA_IN_DEV === 'true';
+const blockWritesInDev = import.meta.env.VITE_BLOCK_WRITES_IN_DEV !== 'false';
 const usingProductionSupabase = SUPABASE_URL === PRODUCTION_SUPABASE_URL;
 
 if (isDev && usingProductionSupabase && !allowProdDataInDev) {
-  throw new Error(
+  console.warn(
     [
-      'Safety check blocked startup: localhost is configured to use production Supabase.',
-      'To keep local changes local, point VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to a dev Supabase project in .env.local.',
-      'If you intentionally want localhost to modify production data, set VITE_ALLOW_PROD_DATA_IN_DEV=true in .env.local.',
+      'Safety warning: localhost is configured to use production Supabase.',
+      'Use a dev Supabase project in .env.local to keep data fully isolated.',
+      'Set VITE_ALLOW_PROD_DATA_IN_DEV=true in .env.local only if this is intentional.',
     ].join(' ')
   );
 }
+
+const getRequestUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+};
+
+const getRequestMethod = (input: RequestInfo | URL, init?: RequestInit): string => {
+  if (init?.method) return init.method.toUpperCase();
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.method.toUpperCase();
+  return 'GET';
+};
+
+const guardedFetch: typeof fetch = async (input, init) => {
+  const url = getRequestUrl(input);
+  const method = getRequestMethod(input, init);
+  const isWriteMethod = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+  const isSupabaseRequest = url.startsWith(SUPABASE_URL);
+  const isAuthRequest = url.includes('/auth/v1/');
+
+  const shouldBlockWrite =
+    isDev &&
+    blockWritesInDev &&
+    usingProductionSupabase &&
+    !allowProdDataInDev &&
+    isSupabaseRequest &&
+    isWriteMethod &&
+    !isAuthRequest;
+
+  if (shouldBlockWrite) {
+    console.warn(`Blocked dev write request to production Supabase: ${method} ${url}`);
+    return new Response(
+      JSON.stringify({
+        message:
+          'Development write blocked to protect production data. Set VITE_ALLOW_PROD_DATA_IN_DEV=true to bypass intentionally.',
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  return fetch(input, init);
+};
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: {
+    fetch: guardedFetch,
+  },
   auth: {
     storage: localStorage,
     persistSession: true,
