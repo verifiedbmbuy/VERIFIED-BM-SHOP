@@ -1,0 +1,34 @@
+project_id = "xukkejkvcgixogvbllmf"
+
+[functions.cryptomus-webhook]
+verify_jwt = false
+
+[functions.timeout-orders]
+verify_jwt = false
+
+[functions.sitemap]
+verify_jwt = false
+
+[functions.robots-txt]
+verify_jwt = false
+
+[functions.vbb-chat]
+verify_jwt = false
+
+[functions.telegram-notify]
+verify_jwt = false
+
+[functions.media-resolve]
+verify_jwt = false
+
+[functions.create-order]
+verify_jwt = false
+
+[functions.generate-blog-post]
+verify_jwt = false
+
+[functions.send-newsletter]
+verify_jwt = false
+
+[functions.purge-cache]
+verify_jwt = false

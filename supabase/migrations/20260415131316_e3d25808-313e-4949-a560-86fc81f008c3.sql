@@ -1,0 +1,1 @@
+UPDATE site_settings SET value = 'Okey! Trusted provider of verified Meta Business Managers and WhatsApp Business API accounts since 2020. Serving 10,000+ advertisers globally.', updated_at = now() WHERE key = 'footer_description';

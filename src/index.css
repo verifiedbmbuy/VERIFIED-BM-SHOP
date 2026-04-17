@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Tiptap Editor Styles */
+.tiptap {
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.tiptap h1, .ProseMirror h1 { font-size: 1.75rem !important; font-weight: 700 !important; margin-top: 1.5rem; margin-bottom: 0.5rem; line-height: 1.3; }
+.tiptap h2, .ProseMirror h2 { font-size: 1.375rem !important; font-weight: 600 !important; margin-top: 1.25rem; margin-bottom: 0.5rem; line-height: 1.3; }
+.tiptap h3, .ProseMirror h3 { font-size: 1.125rem !important; font-weight: 600 !important; margin-top: 1rem; margin-bottom: 0.5rem; line-height: 1.3; }
+.tiptap p { margin-bottom: 0.75rem; }
+.tiptap ul, .tiptap ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.tiptap ul { list-style-type: disc; }
+.tiptap ol { list-style-type: decimal; }
+.tiptap li { margin-bottom: 0.25rem; }
+.tiptap blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+.tiptap strong { font-weight: 700; }
+.tiptap em { font-style: italic; }
+
+/* Blog post content styles (fallback for prose) */
+.prose h1 { font-size: 2rem !important; font-weight: 700 !important; margin-top: 1.5rem; margin-bottom: 0.75rem; line-height: 1.3; }
+.prose h2 { font-size: 1.5rem !important; font-weight: 700 !important; margin-top: 2rem; margin-bottom: 0.75rem; line-height: 1.3; color: hsl(var(--foreground)); }
+.prose h3 { font-size: 1.25rem !important; font-weight: 600 !important; margin-top: 1.5rem; margin-bottom: 0.5rem; line-height: 1.3; color: hsl(var(--foreground)); }
+.prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+.prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+.prose li { margin-bottom: 0.25rem; }
+.prose blockquote { border-left: 3px solid hsl(var(--primary)); padding-left: 1rem; margin: 1rem 0; font-style: italic; color: hsl(var(--muted-foreground)); }
+.prose a { color: hsl(var(--primary)); text-decoration: underline; }
+.prose strong { font-weight: 700; }
+
+/* Blog special components */
+.prose .key-takeaway { background: hsl(var(--primary) / 0.05); border: 1px solid hsl(var(--primary) / 0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+.prose .key-takeaway h3 { margin-top: 0; font-size: 1.1rem !important; }
+.prose .table-of-contents { background: hsl(var(--secondary)); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+.prose .faq-item { border-bottom: 1px solid hsl(var(--border)); padding-bottom: 1rem; margin-bottom: 1rem; }
+.prose .related-products { background: hsl(var(--secondary)); border-radius: 12px; padding: 1.5rem; margin-top: 2rem; }
+.prose .related-products .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.prose .related-products .product-card { background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: 8px; padding: 1rem; }
+.prose .related-products .product-card a { font-weight: 600; text-decoration: none; }
+/* Global Edit Mode visual feedback */
+[contenteditable="true"] {
+  cursor: text;
+  transition: outline 0.15s ease;
+}
+[contenteditable="true"]:hover {
+  outline: 2px dashed hsl(217 91% 60%);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+[contenteditable="true"]:focus {
+  outline: 2px solid hsl(217 91% 60%);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Hero animations */
+@keyframes hero-fade-left {
+  from { opacity: 0; transform: translate3d(-40px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes hero-fade-right {
+  from { opacity: 0; transform: translate3d(40px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translate3d(0, 30px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes border-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-hero-fade-left {
+  animation: hero-fade-left 0.7s ease-out both;
+}
+.animate-hero-fade-right {
+  animation: hero-fade-right 0.7s ease-out both;
+}
+.animate-hero-fade-up {
+  animation: hero-fade-up 0.7s ease-out both;
+}
+.animate-hero-border-rotate {
+  animation: border-rotate 4s linear infinite;
+  will-change: transform;
+}
+
+/* Neon button wrapper */
+.neon-btn-wrap {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 2px;
+}
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}

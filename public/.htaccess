@@ -1,0 +1,95 @@
+# =============================================
+# .htaccess for VBB STORE — Hostinger (Apache/LiteSpeed)
+# Drop this file in the root of your public_html folder
+# =============================================
+
+# ── Force HTTPS ──────────────────────────────
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ── Force non-www to www (optional – uncomment if needed) ──
+# RewriteCond %{HTTP_HOST} !^www\. [NC]
+# RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
+
+# ── Sitemap — proxy to dynamic Edge Function ──
+RewriteRule ^sitemap\.xml$ https://xukkejkvcgixogvbllmf.supabase.co/functions/v1/sitemap [L,R=302]
+
+# ── Robots.txt — serve static file directly ──
+
+# ── Branded Media URLs with Slug Mapping ──
+RewriteRule ^admin/media/(.+)$ media-proxy.php?file=$1 [L,QSA]
+# Resolve branded /media/ slugs via Edge Function (302 → Supabase storage)
+RewriteRule ^media/(.+)$ https://xukkejkvcgixogvbllmf.supabase.co/functions/v1/media-resolve?slug=$1 [L,R=302]
+
+# Resolve branded /branding/ assets directly to Supabase storage bucket
+RewriteRule ^branding/(.+)$ https://xukkejkvcgixogvbllmf.supabase.co/storage/v1/object/public/branding/$1 [L,R=302]
+
+# ── SPA Pretty Permalinks ────────────────────
+# Exclude static files from SPA catch-all (sitemap, robots, llms)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/robots\.txt$ [NC]
+RewriteCond %{REQUEST_URI} !^/llms\.txt$ [NC]
+RewriteRule ^ index.html [QSA,L]
+
+# ── Gzip / Brotli Compression ────────────────
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE text/javascript
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE application/json
+  AddOutputFilterByType DEFLATE application/xml
+  AddOutputFilterByType DEFLATE image/svg+xml
+  AddOutputFilterByType DEFLATE font/woff2
+</IfModule>
+
+# ── Browser Caching ──────────────────────────
+<IfModule mod_expires.c>
+  ExpiresActive On
+
+  # HTML — short cache (SPA re-validates)
+  ExpiresByType text/html "access plus 1 hour"
+
+  # CSS & JS — hashed filenames so long cache is safe
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+
+  # Images
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+
+  # Fonts
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType application/font-woff2 "access plus 1 year"
+</IfModule>
+
+# ── Security Headers ─────────────────────────
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  # Cache hashed assets aggressively
+  <FilesMatch "\.(js|css|woff2|png|jpg|webp|svg)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # Don't cache index.html (SPA entry)
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ── Block Admin Crawling ─────────────────────
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_URI} !^/admin/media/ [NC]
+  RewriteCond %{HTTP_USER_AGENT} (Googlebot|Bingbot|Slurp|DuckDuckBot) [NC]
+  RewriteRule ^admin/ - [F,L]
+</IfModule>
