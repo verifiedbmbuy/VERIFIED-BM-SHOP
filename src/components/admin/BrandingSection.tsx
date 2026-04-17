@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { convertToWebP, toBrandedUrl } from "@/lib/imageUtils";
+import { supabase, isLocalProtectedMode } from "@/integrations/supabase/client";
+import { convertToWebP, getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, X, Image as ImageIcon, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ const BRANDING_FIELDS = [
   { key: "invoice_logo", label: "Invoice Logo", desc: "High-resolution version for PDF invoices (PNG, max 2MB)", accept: ".png,.jpg,.jpeg" },
   { key: "homepage_hero_logo", label: "Homepage Hero Logo", desc: "Logo displayed in the homepage hero section (PNG/SVG/WebP, max 2MB)", accept: ".png,.svg,.webp" },
 ];
+
+const DEV_BRANDING_OVERRIDES_KEY = "dev_branding_overrides";
 
 const BrandingSection = () => {
   const [logos, setLogos] = useState<Record<string, string>>({});
@@ -34,6 +36,17 @@ const BrandingSection = () => {
       if (data) {
         const map: Record<string, string> = {};
         data.forEach((r) => { map[r.key] = r.value; });
+        if (typeof window !== "undefined" && isLocalProtectedMode) {
+          try {
+            const raw = window.localStorage.getItem(DEV_BRANDING_OVERRIDES_KEY);
+            if (raw) {
+              const overrides = JSON.parse(raw) as Record<string, string>;
+              Object.assign(map, overrides);
+            }
+          } catch {
+            // ignore malformed local overrides
+          }
+        }
         setLogos(map);
       }
       setLoading(false);
@@ -42,6 +55,20 @@ const BrandingSection = () => {
   }, []);
 
   const persistBrandingField = async (key: string, value: string) => {
+    if (typeof window !== "undefined" && isLocalProtectedMode) {
+      let overrides: Record<string, string> = {};
+      try {
+        const raw = window.localStorage.getItem(DEV_BRANDING_OVERRIDES_KEY);
+        if (raw) overrides = JSON.parse(raw) as Record<string, string>;
+      } catch {
+        // reset malformed value
+      }
+      if (value) overrides[key] = value;
+      else delete overrides[key];
+      window.localStorage.setItem(DEV_BRANDING_OVERRIDES_KEY, JSON.stringify(overrides));
+      return;
+    }
+
     const { error } = await supabase.from("site_settings").upsert(
       { key, value, updated_at: new Date().toISOString() },
       { onConflict: "key" }
@@ -50,6 +77,11 @@ const BrandingSection = () => {
   };
 
   const handleUpload = async (key: string, file: File) => {
+    if (isLocalProtectedMode) {
+      toast.error("Upload is disabled in local protected mode. Select an existing image from Media Library, or set VITE_ALLOW_PROD_DATA_IN_DEV=true to enable writes intentionally.");
+      return;
+    }
+
     const maxSize = key === "favicon" ? 500 * 1024 : 2 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error(`File too large. Max ${key === "favicon" ? "500KB" : "2MB"}.`);
@@ -123,7 +155,10 @@ const BrandingSection = () => {
     if (!mediaTargetKey) return;
 
     const key = mediaTargetKey;
-    const url = `${file.url}?t=${Date.now()}`;
+    const canonicalUrl = file.file_path
+      ? getAdminMediaUrl(file.file_path)
+      : toBrandedUrl(file.url);
+    const url = `${canonicalUrl}?t=${Date.now()}`;
     setLogos((p) => ({ ...p, [key]: url }));
 
     try {

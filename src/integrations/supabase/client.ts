@@ -10,6 +10,8 @@ const isDev = import.meta.env.DEV;
 const allowProdDataInDev = import.meta.env.VITE_ALLOW_PROD_DATA_IN_DEV === 'true';
 const blockWritesInDev = import.meta.env.VITE_BLOCK_WRITES_IN_DEV !== 'false';
 const usingProductionSupabase = SUPABASE_URL === PRODUCTION_SUPABASE_URL;
+export const isLocalProtectedMode =
+  isDev && usingProductionSupabase && !allowProdDataInDev && blockWritesInDev;
 
 if (isDev && usingProductionSupabase && !allowProdDataInDev) {
   console.warn(
@@ -41,10 +43,7 @@ const guardedFetch: typeof fetch = async (input, init) => {
   const isAuthRequest = url.includes('/auth/v1/');
 
   const shouldBlockWrite =
-    isDev &&
-    blockWritesInDev &&
-    usingProductionSupabase &&
-    !allowProdDataInDev &&
+    isLocalProtectedMode &&
     isSupabaseRequest &&
     isWriteMethod &&
     !isAuthRequest;
