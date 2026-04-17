@@ -1,0 +1,12 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/verifie1/public_html/
+    - |
+      if [ ! -f .deploy-live ]; then
+        echo "[deploy] skipped: .deploy-live marker not found in repo root."
+        exit 0
+      fi
+    - /bin/cp -R dist/* $DEPLOYPATH
+    - /bin/cp public/.htaccess $DEPLOYPATH/.htaccess
+    - /bin/cp public/media-proxy.php $DEPLOYPATH/media-proxy.php

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+npm run guard:push
+status=$?
+if [ $status -ne 0 ]; then
+  echo "[pre-push] blocked by safety guard"
+  exit $status
+fi
+
+exit 0
