@@ -23,6 +23,7 @@ const DEFAULT_BRANDING: BrandingSettings = {
 };
 
 const DEV_BRANDING_OVERRIDES_KEY = "dev_branding_overrides";
+const DEV_OVERRIDE_DELETED = "__deleted__";
 
 const getDevBrandingOverrides = (): Record<string, string> => {
   if (typeof window === "undefined" || !isLocalProtectedMode) return {};
@@ -69,13 +70,18 @@ const fetchBranding = async (): Promise<BrandingSettings> => {
   const map: Record<string, string> = {};
   data.forEach((r) => { map[r.key] = r.value; });
   const localOverrides = getDevBrandingOverrides();
+  const pick = (key: keyof BrandingSettings, fallback = ""): string => {
+    const override = localOverrides[key];
+    if (override === DEV_OVERRIDE_DELETED) return "";
+    return override ?? map[key] ?? fallback;
+  };
   return {
-    header_logo: ensurePublicUrl(localOverrides.header_logo ?? map.header_logo ?? ""),
-    footer_logo: ensurePublicUrl(localOverrides.footer_logo ?? map.footer_logo ?? ""),
-    favicon: ensurePublicUrl(localOverrides.favicon ?? map.favicon ?? ""),
-    invoice_logo: ensurePublicUrl(localOverrides.invoice_logo ?? map.invoice_logo ?? ""),
-    site_title: localOverrides.site_title ?? map.site_title ?? "Verified BM Shop",
-    homepage_hero_logo: ensurePublicUrl(localOverrides.homepage_hero_logo ?? map.homepage_hero_logo ?? ""),
+    header_logo: ensurePublicUrl(pick("header_logo")),
+    footer_logo: ensurePublicUrl(pick("footer_logo")),
+    favicon: ensurePublicUrl(pick("favicon")),
+    invoice_logo: ensurePublicUrl(pick("invoice_logo")),
+    site_title: pick("site_title", "Verified BM Shop"),
+    homepage_hero_logo: ensurePublicUrl(pick("homepage_hero_logo")),
   };
 };
 

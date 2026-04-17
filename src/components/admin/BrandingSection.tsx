@@ -17,6 +17,7 @@ const BRANDING_FIELDS = [
 ];
 
 const DEV_BRANDING_OVERRIDES_KEY = "dev_branding_overrides";
+const DEV_OVERRIDE_DELETED = "__deleted__";
 
 const BrandingSection = () => {
   const [logos, setLogos] = useState<Record<string, string>>({});
@@ -41,7 +42,13 @@ const BrandingSection = () => {
             const raw = window.localStorage.getItem(DEV_BRANDING_OVERRIDES_KEY);
             if (raw) {
               const overrides = JSON.parse(raw) as Record<string, string>;
-              Object.assign(map, overrides);
+              Object.entries(overrides).forEach(([k, v]) => {
+                if (v === DEV_OVERRIDE_DELETED) {
+                  delete map[k];
+                } else {
+                  map[k] = v;
+                }
+              });
             }
           } catch {
             // ignore malformed local overrides
@@ -63,8 +70,12 @@ const BrandingSection = () => {
       } catch {
         // reset malformed value
       }
-      if (value) overrides[key] = value;
-      else delete overrides[key];
+      if (value) {
+        overrides[key] = value;
+      } else {
+        // Keep an explicit tombstone so refresh does not revive DB value.
+        overrides[key] = DEV_OVERRIDE_DELETED;
+      }
       window.localStorage.setItem(DEV_BRANDING_OVERRIDES_KEY, JSON.stringify(overrides));
       return;
     }
