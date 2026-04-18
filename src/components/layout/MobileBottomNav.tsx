@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, ShoppingBag, MessageCircle, User, X, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useBranding } from "@/hooks/useBranding";
-import AuthModal from "@/components/auth/AuthModal";
 import ChatMenu from "./ChatMenu";
-import { getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
+import { toBrandedUrl } from "@/lib/imageUtils";
+
+const AuthModal = lazy(() => import("@/components/auth/AuthModal"));
 
 const navLinks = [
   { label: "HOME", path: "/" },
@@ -40,7 +41,8 @@ const MobileBottomNav = () => {
     <span className="absolute top-1.5 w-[6px] h-[6px] rounded-full bg-primary" />
   );
 
-  const logoSrc = branding.header_logo ? toBrandedUrl(branding.header_logo) : getAdminMediaUrl("branding/verified-bm-services-header.png");
+  const fallbackLogo = "/images/logos/Verified-bm-shop-logo.png";
+  const logoSrc = fallbackLogo;
 
   return (
     <>
@@ -65,6 +67,12 @@ const MobileBottomNav = () => {
               src={logoSrc}
               alt={branding.site_title || "Verified BM Shop"}
               className="h-8 w-auto max-w-[150px] object-contain"
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.src !== fallbackLogo) {
+                  img.src = fallbackLogo;
+                }
+              }}
             />
           </Link>
           <button onClick={() => setMenuOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -144,7 +152,11 @@ const MobileBottomNav = () => {
 
       <div className="h-[60px] lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }} />
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      {authOpen && (
+        <Suspense fallback={null}>
+          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 };

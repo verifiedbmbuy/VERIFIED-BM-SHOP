@@ -262,8 +262,8 @@ const AdminProducts = () => {
       sale_price: editProduct.sale_price ? Number(editProduct.sale_price) : null,
       category: editProduct.category || "Verified BM",
       badge: hasSale ? "Sale" : (editProduct.badge === "Sale" ? null : editProduct.badge || null),
-      image_url: editProduct.image_url || null,
-      gallery_images: editProduct.gallery_images || [],
+      image_url: editProduct.image_url ? toBrandedUrl(editProduct.image_url) : null,
+      gallery_images: (editProduct.gallery_images || []).map((u) => toBrandedUrl(u)),
       rating: editProduct.rating ? Number(editProduct.rating) : 5,
       sort_order: editProduct.sort_order ? Number(editProduct.sort_order) : 0,
       is_featured: editProduct.is_featured || false,
@@ -794,10 +794,10 @@ const AdminProducts = () => {
                   <Input
                     value={editProduct.image_url || ""}
                     onChange={(e) => setEditProduct({ ...editProduct, image_url: e.target.value })}
-                    placeholder="https://verifiedbm.shop/media/image.webp"
+                    placeholder="https://verifiedbm.shop/admin/media/products/image.webp"
                     className="mt-1 font-mono text-xs"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Paste any URL or pick from Media Library above. Manually entered URLs are preserved.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Paste any URL or pick from Media Library above. URL is saved as /admin/media/...</p>
                 </div>
               </div>
               <div>
@@ -823,7 +823,7 @@ const AdminProducts = () => {
                   <div className="flex gap-2 mt-1">
                     <Input
                       id="gallery-url-input"
-                      placeholder="https://verifiedbm.shop/media/gallery-image.webp"
+                      placeholder="https://verifiedbm.shop/admin/media/products/gallery-image.webp"
                       className="flex-1 font-mono text-xs"
                     />
                     <Button variant="outline" size="sm" onClick={() => {
@@ -1013,6 +1013,7 @@ const AdminProducts = () => {
       <MediaLibraryModal
         open={mediaOpen}
         onOpenChange={setMediaOpen}
+        uploadPathPrefix="products"
         onSelect={(file) => {
           if (mediaTarget === "main") {
             setEditProduct({ ...editProduct, image_url: toBrandedUrl(file.url) });

@@ -1,43 +1,40 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, MessageCircle, Send, Mail, Clock, ArrowRight, ChevronRight } from "lucide-react";
+import { MapPin, MessageCircle, Send, Mail, ChevronRight } from "lucide-react";
 import NewsletterForm from "@/components/newsletter/NewsletterForm";
 import { useBranding } from "@/hooks/useBranding";
 import { useMenuItems } from "@/hooks/useMenuItems";
+import EditableText from "@/components/editor/EditableText";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DynamicIcon from "@/components/shared/DynamicIcon";
+import { toBrandedUrl } from "@/lib/imageUtils";
 
-interface FooterProduct { slug: string; title: string; }
-interface FooterBlogPost { slug: string; title: string; }
+const FOOTER_SETTINGS_STALE_TIME = 30 * 60 * 1000;
 
 const FOOTER_KEYS = [
   "footer_description", "contact_address", "contact_phone",
   "contact_telegram", "contact_email", "footer_copyright_text",
+  "footer_newsletter_title", "footer_newsletter_description",
 ];
 
 const Footer = () => {
   const { branding } = useBranding();
-  const [products, setProducts] = useState<FooterProduct[]>([]);
-  const [blogPosts, setBlogPosts] = useState<FooterBlogPost[]>([]);
-  const [footerSettings, setFooterSettings] = useState<Record<string, string>>({});
   const { data: dbQuickLinks } = useMenuItems("footer-quick");
   const { data: dbTrustLinks } = useMenuItems("footer-trust");
-
-  useEffect(() => {
-    supabase.from("products").select("slug,title").order("sort_order").then(({ data }) => {
-      if (data) setProducts(data);
-    });
-    supabase.from("blog_posts").select("slug,title").eq("status", "published").order("published_at", { ascending: false }).then(({ data }) => {
-      if (data) setBlogPosts(data);
-    });
-    supabase.from("site_settings").select("key, value").in("key", FOOTER_KEYS).then(({ data }) => {
-      if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((r) => { map[r.key] = r.value; });
-        setFooterSettings(map);
-      }
-    });
-  }, []);
+  const { data: footerSettings = {} } = useQuery({
+    queryKey: ["footer-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("key, value").in("key", FOOTER_KEYS);
+      const map: Record<string, string> = {};
+      data?.forEach((r) => { map[r.key] = r.value; });
+      return map;
+    },
+    staleTime: FOOTER_SETTINGS_STALE_TIME,
+    gcTime: FOOTER_SETTINGS_STALE_TIME,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
   const desc = footerSettings.footer_description || "Okey! Trusted provider of verified Meta Business Managers and WhatsApp Business API accounts since 2020. Serving 10,000+ advertisers globally. We offer premium, fully verified BMs with high spending limits, dedicated support, and a hassle-free replacement guarantee — helping agencies and media buyers scale their ad campaigns with confidence.";
   const address = footerSettings.contact_address || "20 Madargonj, Pirgonj, Rangpur, Bangladesh\u00a0-\u00a05470";
@@ -46,12 +43,25 @@ const Footer = () => {
   const email = footerSettings.contact_email || "info@verifiedbm.shop";
   const copyrightRaw = footerSettings.footer_copyright_text || `© {year} ${branding.site_title || "Verified BM Shop"}. All rights reserved. | Verified BM & WhatsApp API Provider`;
   const copyright = copyrightRaw.replace(/\{year\}/g, String(new Date().getFullYear()));
+  const fallbackLogo = "/images/logos/Verified-bm-shop-logo.png";
+  const footerLogoSrc = fallbackLogo;
 
-  const logoElement = branding.footer_logo ? (
-    <img src={branding.footer_logo} alt={branding.site_title} className="h-11 max-w-[200px] object-contain" loading="lazy" />
-  ) : branding.header_logo ? (
-    <img src={branding.header_logo} alt={branding.site_title} className="h-11 max-w-[200px] object-contain" loading="lazy" />
-  ) : (
+  const logoElement = (
+    <img
+      src={footerLogoSrc}
+      alt={`${branding.site_title || "Verified BM Shop"} logo`}
+      className="h-11 max-w-[200px] object-contain"
+      loading="lazy"
+      onError={(e) => {
+        const img = e.currentTarget;
+        if (img.src !== fallbackLogo) {
+          img.src = fallbackLogo;
+        }
+      }}
+    />
+  );
+
+  const fallbackLogoElement = (
     <div className="flex items-center gap-2.5">
       <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm">V</div>
       <span className="text-lg font-bold text-foreground tracking-tight">Verified BM <span className="text-primary">Shop</span></span>
@@ -73,12 +83,16 @@ const Footer = () => {
     { to: "/faq", label: "FAQ" },
   ];
 
-  const quickLinks = dbQuickLinks && dbQuickLinks.length > 0
-    ? dbQuickLinks.map(m => ({ to: m.url, label: m.label, iconName: m.icon_name }))
-    : defaultQuickLinks.map(l => ({ ...l, iconName: null as string | null }));
-  const trustLinks = dbTrustLinks && dbTrustLinks.length > 0
-    ? dbTrustLinks.map(m => ({ to: m.url, label: m.label, iconName: m.icon_name }))
-    : defaultTrustLinks.map(l => ({ ...l, iconName: null as string | null }));
+  const quickLinks = useMemo(() => (
+    dbQuickLinks && dbQuickLinks.length > 0
+      ? dbQuickLinks.map(m => ({ to: m.url, label: m.label, iconName: m.icon_name }))
+      : defaultQuickLinks.map(l => ({ ...l, iconName: null as string | null }))
+  ), [dbQuickLinks]);
+  const trustLinks = useMemo(() => (
+    dbTrustLinks && dbTrustLinks.length > 0
+      ? dbTrustLinks.map(m => ({ to: m.url, label: m.label, iconName: m.icon_name }))
+      : defaultTrustLinks.map(l => ({ ...l, iconName: null as string | null }))
+  ), [dbTrustLinks]);
 
   return (
     <footer className="relative bg-gradient-to-b from-secondary/30 via-secondary/50 to-secondary/70 border-t border-border print:hidden">
@@ -87,8 +101,20 @@ const Footer = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="max-w-xl mx-auto text-center">
-            <h3 className="text-lg font-bold text-foreground mb-1">Join our Newsletter</h3>
-            <p className="text-sm text-muted-foreground mb-4">Get exclusive deals, tips & updates delivered to your inbox weekly.</p>
+            <EditableText
+              fieldKey="setting:footer_newsletter_title"
+              value={footerSettings.footer_newsletter_title || ""}
+              fallback="Join our Newsletter"
+              as="h3"
+              className="text-lg font-bold text-foreground mb-1"
+            />
+            <EditableText
+              fieldKey="setting:footer_newsletter_description"
+              value={footerSettings.footer_newsletter_description || ""}
+              fallback="Get exclusive deals, tips & updates delivered to your inbox weekly."
+              as="p"
+              className="text-sm text-muted-foreground mb-4"
+            />
             <NewsletterForm variant="footer" />
           </div>
         </div>
@@ -100,10 +126,14 @@ const Footer = () => {
 
           {/* Col 1 — Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
-            <div className="mb-4">{logoElement}</div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {desc}
-            </p>
+            <div className="mb-4">{footerLogoSrc ? logoElement : fallbackLogoElement}</div>
+            <EditableText
+              fieldKey="setting:footer_description"
+              value={footerSettings.footer_description || ""}
+              fallback={desc}
+              as="p"
+              className="text-sm text-muted-foreground leading-relaxed"
+            />
           </div>
 
           {/* Col 2 — Quick Links */}
@@ -167,31 +197,55 @@ const Footer = () => {
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin className="w-4 h-4 text-primary" />
                 </div>
-                <span className="leading-relaxed">{address}</span>
+                <EditableText
+                  fieldKey="setting:contact_address"
+                  value={footerSettings.contact_address || ""}
+                  fallback={address}
+                  as="span"
+                  className="leading-relaxed"
+                />
               </div>
 
               <a href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                aria-label={`Chat with ${branding.site_title || "Verified BM Shop"} on WhatsApp`}
                 className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-[hsl(142,70%,45%)]/10 flex items-center justify-center shrink-0">
                   <MessageCircle className="w-4 h-4 text-[hsl(142,70%,45%)]" />
                 </div>
-                {phone}
+                <EditableText
+                  fieldKey="setting:contact_phone"
+                  value={footerSettings.contact_phone || ""}
+                  fallback={phone}
+                  as="span"
+                />
               </a>
 
               <a href={`https://t.me/${telegram}`} target="_blank" rel="noopener noreferrer"
+                aria-label={`Message ${branding.site_title || "Verified BM Shop"} on Telegram`}
                 className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-[hsl(200,100%,40%)]/10 flex items-center justify-center shrink-0">
                   <Send className="w-4 h-4 text-[hsl(200,100%,40%)]" />
                 </div>
-                @{telegram}
+                <EditableText
+                  fieldKey="setting:contact_telegram"
+                  value={footerSettings.contact_telegram || ""}
+                  fallback={telegram}
+                  as="span"
+                />
               </a>
 
               <a href={`mailto:${email}`}
+                aria-label={`Email ${branding.site_title || "Verified BM Shop"}`}
                 className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Mail className="w-4 h-4 text-primary" />
                 </div>
-                {email}
+                <EditableText
+                  fieldKey="setting:contact_email"
+                  value={footerSettings.contact_email || ""}
+                  fallback={email}
+                  as="span"
+                />
               </a>
 
             </div>
@@ -202,7 +256,12 @@ const Footer = () => {
       {/* Copyright */}
       <div className="border-t border-border/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-center text-xs text-muted-foreground">
-          {copyright}
+          <EditableText
+            fieldKey="setting:footer_copyright_text"
+            value={footerSettings.footer_copyright_text ? footerSettings.footer_copyright_text.replace(/\{year\}/g, String(new Date().getFullYear())) : ""}
+            fallback={copyright}
+            as="span"
+          />
         </div>
       </div>
     </footer>

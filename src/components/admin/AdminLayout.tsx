@@ -3,7 +3,6 @@ import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
-import headerFallback from "@/assets/verified-bm-services-header.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -25,7 +24,7 @@ const navItems = [
   { title: "Dashboard", path: "/admin", icon: LayoutDashboard, section: "dashboard" },
   { title: "Messages", path: "/admin/messages", icon: MessageSquare, section: "dashboard" },
   { title: "Posts", path: "/admin/posts", icon: FileText, section: "posts" },
-  { title: "Pages", path: "/admin/pages", icon: File, section: "pages" },
+  { title: "Website Content", path: "/admin/pages", icon: File, section: "pages" },
   { title: "Products", path: "/admin/products", icon: Package, section: "dashboard" },
   { title: "Orders", path: "/admin/orders", icon: ShoppingCart, section: "dashboard" },
   { title: "Comments", path: "/admin/comments", icon: MessageCircle, section: "posts", badge: true },
@@ -192,10 +191,10 @@ const AdminLayout = () => {
       <div className="h-14 flex items-center px-4 border-b border-[#ffffff0d] shrink-0">
         <Link to="/admin" className="flex items-center gap-2 min-w-0">
           <img
-            src={branding.header_logo || getAdminMediaUrl("branding/verified-bm-services-header.png")}
+            src={branding.header_logo || "/images/logos/Verified-bm-shop-logo.png"}
             alt={branding.site_title || "Admin"}
             className="max-h-[32px] w-auto object-contain brightness-0 invert"
-            onError={(e) => { (e.target as HTMLImageElement).src = getAdminMediaUrl("branding/verified-bm-services-header.png"); }}
+            onError={(e) => { (e.target as HTMLImageElement).src = "/images/logos/Verified-bm-shop-logo.png"; }}
           />
         </Link>
       </div>
@@ -291,6 +290,15 @@ const AdminLayout = () => {
       {branding.favicon && (
         <Helmet>
           <link rel="icon" href={branding.favicon} type="image/png" />
+          <meta name="robots" content="noindex,nofollow" />
+          <meta name="googlebot" content="noindex,nofollow" />
+        </Helmet>
+      )}
+
+      {!branding.favicon && (
+        <Helmet>
+          <meta name="robots" content="noindex,nofollow" />
+          <meta name="googlebot" content="noindex,nofollow" />
         </Helmet>
       )}
 

@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, User, Menu, X, Search, LogOut } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import AuthModal from "@/components/auth/AuthModal";
-import { getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
+import { toBrandedUrl } from "@/lib/imageUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { useMenuItems } from "@/hooks/useMenuItems";
+
+const AuthModal = lazy(() => import("@/components/auth/AuthModal"));
 
 const defaultNavLinks = [
   { label: "HOME", path: "/" },
@@ -80,8 +81,8 @@ const Navbar = () => {
     setMobileOpen(false);
   }, [user, navigate]);
 
-  const fallbackLogo = getAdminMediaUrl("branding/verified-bm-services-header.png");
-  const logoSrc = branding.header_logo ? toBrandedUrl(branding.header_logo) : fallbackLogo;
+  const fallbackLogo = "/images/logos/Verified-bm-shop-logo.png";
+  const logoSrc = fallbackLogo;
 
   const logoElement = (
     <img
@@ -89,10 +90,15 @@ const Navbar = () => {
       alt={branding.site_title || "Verified BM Shop official logo"}
       width={180}
       height={44}
-      loading="eager"
-      fetchPriority="high"
-      decoding="sync"
+      loading={location.pathname === "/" ? "eager" : "lazy"}
+      decoding="async"
       className="h-11 w-auto max-w-[200px] object-contain"
+      onError={(e) => {
+        const img = e.currentTarget;
+        if (img.src !== fallbackLogo) {
+          img.src = fallbackLogo;
+        }
+      }}
     />
   );
 
@@ -259,7 +265,11 @@ const Navbar = () => {
       <div className="h-16" aria-hidden="true" />
 
       {/* Auth Modal */}
-      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      {authModalOpen && (
+        <Suspense fallback={null}>
+          <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 };

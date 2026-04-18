@@ -582,6 +582,7 @@ const AdminPostEditor = () => {
       <MediaLibraryModal
         open={mediaLibraryOpen}
         onOpenChange={setMediaLibraryOpen}
+        uploadPathPrefix="blog-posts"
         onSelect={(file) => {
           setFeaturedImage(file.url);
           markUnsaved();
