@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useParams } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -76,13 +76,19 @@ const PageFallback = () => (
   </div>
 );
 
+const LegacyDynamicPageRedirect = () => {
+  const { slug } = useParams<{ slug: string }>();
+  if (!slug) return <Navigate to="/" replace />;
+  return <Navigate to={`/${slug}`} replace />;
+};
+
 const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <AuthProvider>
           <CartProvider>
@@ -97,6 +103,7 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/about" element={<About />} />
+            <Route path="/product" element={<Navigate to="/shop" replace />} />
             <Route path="/product/:slug" element={<ProductDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/checkout" element={<Checkout />} />
@@ -137,7 +144,9 @@ const App = () => (
               <Route path="tasks" element={<AdminTaskBoard />} />
               <Route path="integrations" element={<AdminIntegrations />} />
             </Route>
-            <Route path="/page/:slug" element={<DynamicPage />} />
+            <Route path="/page/:slug" element={<LegacyDynamicPageRedirect />} />
+            <Route path="/page" element={<Navigate to="/" replace />} />
+            <Route path="/:slug" element={<DynamicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

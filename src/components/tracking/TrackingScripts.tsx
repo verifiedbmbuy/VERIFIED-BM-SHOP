@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const TRACKING_CACHE_KEY = "tracking_settings_cache_v1";
+const TRACKING_CACHE_TTL = 60 * 60 * 1000;
+
 declare global {
   interface Window {
     dataLayer: Record<string, unknown>[];
@@ -96,10 +99,36 @@ const TrackingScripts = () => {
     window.dataLayer = window.dataLayer || [];
 
     const load = async () => {
-      const { data } = await supabase
-        .from("site_settings")
-        .select("key, value")
-        .like("key", "tracking_%");
+      let data: Array<{ key: string; value: string }> | null = null;
+
+      try {
+        const cached = window.sessionStorage.getItem(TRACKING_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as { timestamp: number; data: Array<{ key: string; value: string }> };
+          if (Date.now() - parsed.timestamp < TRACKING_CACHE_TTL) {
+            data = parsed.data;
+          }
+        }
+      } catch {
+        // Ignore malformed cache and refetch.
+      }
+
+      if (!data) {
+        const response = await supabase
+          .from("site_settings")
+          .select("key, value")
+          .like("key", "tracking_%");
+
+        data = response.data as Array<{ key: string; value: string }> | null;
+
+        if (data) {
+          try {
+            window.sessionStorage.setItem(TRACKING_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+          } catch {
+            // Ignore cache write failures.
+          }
+        }
+      }
 
       if (!data || data.length === 0) return;
 
@@ -189,9 +218,9 @@ const TrackingScripts = () => {
     };
 
     if ("requestIdleCallback" in window) {
-      (window as any).requestIdleCallback(load);
+      (window as any).requestIdleCallback(load, { timeout: 4000 });
     } else {
-      setTimeout(load, 2000);
+      setTimeout(load, 2500);
     }
   }, [loaded]);
 

@@ -120,6 +120,7 @@ All colors MUST be HSL.
 .prose li { margin-bottom: 0.25rem; }
 .prose blockquote { border-left: 3px solid hsl(var(--primary)); padding-left: 1rem; margin: 1rem 0; font-style: italic; color: hsl(var(--muted-foreground)); }
 .prose a { color: hsl(var(--primary)); text-decoration: underline; }
+.prose .not-prose a { color: inherit; text-decoration: inherit; }
 .prose strong { font-weight: 700; }
 
 /* Blog special components */

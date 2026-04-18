@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { computeSEOScore } from "@/lib/seoScoring";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   TrendingUp, CheckCircle, AlertTriangle, XCircle, Edit, Globe,
-  Image as ImageIcon, Link2, ExternalLink, Wifi, WifiOff,
+  Image as ImageIcon, Link2, Wifi, WifiOff, Loader2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +18,14 @@ interface PageScore {
   slug: string;
   type: "post" | "product";
   focusKeyword: string;
+  metaTitle: string;
+  metaDescription: string;
+  content: string;
+  urlPrefix: string;
   score: number;
   topIssue: string;
+  issueCount: number;
+  issues: string[];
 }
 
 // Reuse the score ring from SEOScoreWidget but smaller
@@ -55,12 +63,115 @@ const SEOHealthWidget = () => {
   const [needsWork, setNeedsWork] = useState(0);
   const [critical, setCritical] = useState(0);
   const [worst, setWorst] = useState<PageScore[]>([]);
+  const [allIssues, setAllIssues] = useState<PageScore[]>([]);
   const [altCoverage, setAltCoverage] = useState(0);
   const [sitemapOnline, setSitemapOnline] = useState<boolean | null>(null);
   const [totalPages, setTotalPages] = useState(0);
+  const [fixingAll, setFixingAll] = useState(false);
+  const [fixingPageId, setFixingPageId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const audit = async () => {
+  const fixSinglePageWithAI = useCallback(async (page: PageScore) => {
+    if (!page.focusKeyword.trim() || page.focusKeyword === "—") {
+      toast.error(`Set a focus keyword first for \"${page.title}\".`);
+      return false;
+    }
+
+    const updates: Record<string, string> = {};
+    const needsTitle = page.issues.some((i) =>
+      i.toLowerCase().includes("title") || i.toLowerCase().includes("power word") || i.toLowerCase().includes("number")
+    );
+    const needsDesc = page.issues.some((i) => i.toLowerCase().includes("description"));
+    const needsSlug = page.issues.some((i) => i.toLowerCase().includes("url") || i.toLowerCase().includes("slug"));
+
+    if (needsTitle) {
+      const { data, error } = await supabase.functions.invoke("seo-ai-fix", {
+        body: {
+          action: "fix_meta_title",
+          context: {
+            focusKeyword: page.focusKeyword,
+            productTitle: page.title,
+            currentDescription: page.metaDescription,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.metaTitle) updates.meta_title = data.metaTitle;
+    }
+
+    if (needsDesc) {
+      const { data, error } = await supabase.functions.invoke("seo-ai-fix", {
+        body: {
+          action: "fix_meta_description",
+          context: {
+            focusKeyword: page.focusKeyword,
+            productTitle: page.title,
+            currentTitle: page.metaTitle || page.title,
+            currentContent: page.content,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.metaDescription) updates.meta_description = data.metaDescription;
+    }
+
+    if (needsSlug) {
+      const { data, error } = await supabase.functions.invoke("seo-ai-fix", {
+        body: {
+          action: "fix_slug",
+          context: {
+            focusKeyword: page.focusKeyword,
+            productTitle: page.title,
+            urlPrefix: page.urlPrefix,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.slug) updates.slug = data.slug;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      toast.info(`No automatic AI fixes available for \"${page.title}\".`);
+      return false;
+    }
+
+    const table = page.type === "post" ? "blog_posts" : "products";
+    const { error: updateError } = await supabase.from(table).update(updates).eq("id", page.id);
+    if (updateError) throw updateError;
+
+    return true;
+  }, []);
+
+  const runFixAllWithAI = useCallback(async () => {
+    if (allIssues.length === 0) {
+      toast.info("No SEO issues found.");
+      return;
+    }
+
+    setFixingAll(true);
+    let fixedCount = 0;
+    try {
+      for (const page of allIssues) {
+        try {
+          const fixed = await fixSinglePageWithAI(page);
+          if (fixed) fixedCount++;
+        } catch (err) {
+          console.error("AI fix failed for page", page.id, err);
+        }
+      }
+      if (fixedCount > 0) {
+        toast.success(`AI fixed ${fixedCount} page(s).`);
+      } else {
+        toast.info("AI could not apply fixes. Check focus keywords and AI config.");
+      }
+    } finally {
+      setFixingAll(false);
+    }
+  }, [allIssues, fixSinglePageWithAI]);
+
+  const audit = useCallback(async () => {
       // Fetch all posts and products in parallel
       const [postsRes, productsRes, mediaRes] = await Promise.all([
         supabase.from("blog_posts").select("id, title, slug, content, meta_title, meta_description, focus_keyword, featured_image"),
@@ -87,8 +198,14 @@ const SEOHealthWidget = () => {
           slug: post.slug,
           type: "post",
           focusKeyword: post.focus_keyword || "—",
+          metaTitle: post.meta_title || "",
+          metaDescription: post.meta_description || "",
+          content: post.content || "",
+          urlPrefix: "/blog/",
           score: result.score,
           topIssue: result.issues[0] || "All good",
+          issueCount: result.issues.length,
+          issues: result.issues,
         });
       }
 
@@ -109,8 +226,14 @@ const SEOHealthWidget = () => {
           slug: prod.slug,
           type: "product",
           focusKeyword: prod.focus_keyword || "—",
+          metaTitle: prod.meta_title || "",
+          metaDescription: prod.meta_description || "",
+          content: prod.description || prod.short_description || "",
+          urlPrefix: "/product/",
           score: result.score,
           topIssue: result.issues[0] || "All good",
+          issueCount: result.issues.length,
+          issues: result.issues,
         });
       }
 
@@ -130,6 +253,7 @@ const SEOHealthWidget = () => {
       // Top 5 worst
       scores.sort((a, b) => a.score - b.score);
       setWorst(scores.slice(0, 5));
+      setAllIssues(scores.filter((s) => s.issueCount > 0));
 
       // Alt text coverage
       const mediaFiles = mediaRes.data || [];
@@ -139,18 +263,24 @@ const SEOHealthWidget = () => {
 
       // Check sitemap
       try {
-        const sitemapUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sitemap`;
-        const res = await fetch(sitemapUrl);
+        const res = await fetch(`/sitemap.xml?ts=${Date.now()}`, { cache: "no-store" });
         setSitemapOnline(res.ok);
       } catch {
         setSitemapOnline(false);
       }
 
       setLoading(false);
-    };
+    }, []);
 
+  useEffect(() => {
     audit();
-  }, []);
+  }, [audit]);
+
+  useEffect(() => {
+    if (!fixingAll && !fixingPageId) {
+      audit();
+    }
+  }, [fixingAll, fixingPageId, audit]);
 
   if (loading) {
     return (
@@ -170,14 +300,32 @@ const SEOHealthWidget = () => {
   const scoreColor = overallScore >= 80 ? "text-[hsl(142,70%,45%)]" : overallScore >= 50 ? "text-[hsl(45,93%,47%)]" : "text-destructive";
 
   return (
-    <div className="bg-background rounded-xl border border-border p-6 space-y-6">
+    <div id="seo-errors" className="bg-background rounded-xl border border-border p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-primary" />
           <h3 className="font-semibold text-foreground">SEO Health Report</h3>
         </div>
-        <Badge variant="outline" className="text-xs">{totalPages} pages analyzed</Badge>
+        <div className="flex items-center gap-2">
+          <a
+            href="#seo-errors-list"
+            className="text-xs px-2.5 py-1 rounded-md border border-border bg-secondary/40 hover:bg-secondary text-foreground transition-colors"
+          >
+            View All SEO Errors ({allIssues.length})
+          </a>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 px-2 text-xs gap-1.5"
+            onClick={runFixAllWithAI}
+            disabled={fixingAll || allIssues.length === 0}
+          >
+            {fixingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {fixingAll ? "Fixing..." : "Fix All with AI"}
+          </Button>
+          <Badge variant="outline" className="text-xs">{totalPages} pages analyzed</Badge>
+        </div>
       </div>
 
       {/* Overall Score + Mini Stats */}
@@ -264,6 +412,98 @@ const SEOHealthWidget = () => {
           </div>
         </div>
       )}
+
+      {/* All SEO Errors + Fix Buttons */}
+      <div id="seo-errors-list">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <XCircle className="w-3.5 h-3.5 text-destructive" /> All SEO Errors
+          </h4>
+          <span className="text-xs text-muted-foreground">{allIssues.length} pages with issues</span>
+        </div>
+
+        {allIssues.length > 0 ? (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-secondary/40 text-muted-foreground text-xs">
+                  <th className="text-left px-3 py-2 font-medium">Page</th>
+                  <th className="text-left px-3 py-2 font-medium hidden sm:table-cell">Top Error</th>
+                  <th className="text-center px-3 py-2 font-medium">Errors</th>
+                  <th className="text-center px-3 py-2 font-medium">Score</th>
+                  <th className="px-3 py-2 w-[110px]"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {allIssues.map((page) => {
+                  const editLink = page.type === "post" ? `/admin/posts/${page.id}/edit` : "/admin/products";
+                  const scoreBg =
+                    page.score >= 80 ? "bg-[hsl(142,70%,45%)]/15 text-[hsl(142,60%,35%)]" :
+                    page.score >= 50 ? "bg-[hsl(45,93%,47%)]/15 text-[hsl(45,80%,35%)]" :
+                    "bg-destructive/15 text-destructive";
+
+                  return (
+                    <tr key={`issue-${page.id}`} className="border-t border-border hover:bg-secondary/20 transition-colors">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] shrink-0 capitalize">{page.type}</Badge>
+                          <span className="font-medium text-foreground truncate max-w-[220px]">{page.title}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground hidden sm:table-cell truncate max-w-[260px]">{page.topIssue}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className="inline-flex items-center justify-center min-w-8 h-6 px-2 rounded-full text-xs font-bold bg-destructive/15 text-destructive">
+                          {page.issueCount}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={cn("inline-flex items-center justify-center w-9 h-6 rounded-full text-xs font-bold", scoreBg)}>
+                          {page.score}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-7 px-2 text-xs gap-1.5"
+                            onClick={async () => {
+                              setFixingPageId(page.id);
+                              try {
+                                const fixed = await fixSinglePageWithAI(page);
+                                if (fixed) {
+                                  toast.success(`AI fix applied for \"${page.title}\".`);
+                                  await audit();
+                                }
+                              } catch (err: any) {
+                                console.error("AI fix failed", err);
+                                toast.error(err?.message || "AI fix failed. Check AI config and try again.");
+                              } finally {
+                                setFixingPageId(null);
+                              }
+                            }}
+                            disabled={fixingAll || fixingPageId === page.id}
+                          >
+                            {fixingPageId === page.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            {fixingPageId === page.id ? "Fixing" : "AI Fix"}
+                          </Button>
+                          <Button asChild size="sm" variant="secondary" className="h-7 px-2 text-xs">
+                            <Link to={editLink}>Open</Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border border-border rounded-lg p-4 text-sm text-muted-foreground bg-secondary/20">
+            No SEO errors found right now.
+          </div>
+        )}
+      </div>
 
       {/* Technical Status */}
       <div>

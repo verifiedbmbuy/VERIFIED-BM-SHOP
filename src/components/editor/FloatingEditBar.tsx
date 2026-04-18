@@ -1,6 +1,8 @@
 import { useEditMode } from "@/contexts/EditModeContext";
-import { Save, X, Loader2, Pencil } from "lucide-react";
+import { Save, Loader2, Pencil, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface FloatingEditBarProps {
   slug: string;
@@ -8,10 +10,28 @@ interface FloatingEditBarProps {
 
 const FloatingEditBar = ({ slug }: FloatingEditBarProps) => {
   const { isEditMode, hasChanges, publishChanges, discardChanges, saving, pendingChanges } = useEditMode();
+  const navigate = useNavigate();
 
   if (!isEditMode) return null;
 
   const changesCount = Object.keys(pendingChanges).length;
+
+  const handleBackToAdmin = () => {
+    if (hasChanges) {
+      const shouldDiscard = window.confirm("You have unsaved changes. Leave this page and discard them?");
+      if (!shouldDiscard) return;
+      discardChanges();
+    }
+    navigate("/admin/pages");
+  };
+
+  const handlePublish = async () => {
+    if (!hasChanges) {
+      toast.info("Make a content change first, then click Publish Changes.");
+      return;
+    }
+    await publishChanges(slug);
+  };
 
   return (
     <div data-floating-bar className="fixed bottom-0 left-0 right-0 z-[9998] animate-in slide-in-from-bottom-4">
@@ -32,16 +52,16 @@ const FloatingEditBar = ({ slug }: FloatingEditBarProps) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={discardChanges}
-              disabled={!hasChanges || saving}
+              onClick={handleBackToAdmin}
+              disabled={saving}
               className="gap-1.5"
             >
-              <X className="w-3.5 h-3.5" /> Discard
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Admin
             </Button>
             <Button
               size="sm"
-              onClick={() => publishChanges(slug)}
-              disabled={!hasChanges || saving}
+              onClick={handlePublish}
+              disabled={saving}
               className="gap-1.5"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

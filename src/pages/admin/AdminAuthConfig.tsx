@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface AuthCredentials {
+  facebook_app_id: string;
+  facebook_app_secret: string;
   google_client_id: string;
   google_client_secret: string;
   apple_service_id: string;
@@ -14,6 +16,8 @@ interface AuthCredentials {
 }
 
 const SETTINGS_KEYS = [
+  "auth_facebook_app_id",
+  "auth_facebook_app_secret",
   "auth_google_client_id",
   "auth_google_client_secret",
   "auth_apple_service_id",
@@ -26,6 +30,8 @@ const AdminAuthConfig = () => {
   const [saving, setSaving] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [creds, setCreds] = useState<AuthCredentials>({
+    facebook_app_id: "",
+    facebook_app_secret: "",
     google_client_id: "",
     google_client_secret: "",
     apple_service_id: "",
@@ -43,6 +49,8 @@ const AdminAuthConfig = () => {
         const map: Record<string, string> = {};
         data.forEach((r) => { map[r.key] = r.value; });
         setCreds({
+          facebook_app_id: map.auth_facebook_app_id || "",
+          facebook_app_secret: map.auth_facebook_app_secret || "",
           google_client_id: map.auth_google_client_id || "",
           google_client_secret: map.auth_google_client_secret || "",
           apple_service_id: map.auth_apple_service_id || "",
@@ -57,6 +65,8 @@ const AdminAuthConfig = () => {
   const handleSave = async () => {
     setSaving(true);
     const entries = [
+      { key: "auth_facebook_app_id", value: creds.facebook_app_id },
+      { key: "auth_facebook_app_secret", value: creds.facebook_app_secret },
       { key: "auth_google_client_id", value: creds.google_client_id },
       { key: "auth_google_client_secret", value: creds.google_client_secret },
       { key: "auth_apple_service_id", value: creds.apple_service_id },
@@ -124,9 +134,26 @@ const AdminAuthConfig = () => {
       <div>
         <h2 className="text-2xl font-bold text-foreground">Auth Configuration</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure OAuth provider credentials for Google and Apple sign-in.
+          Configure OAuth provider credentials for Facebook, Google, and Apple sign-in.
         </p>
       </div>
+
+      {/* Facebook */}
+      <section className="bg-background rounded-xl border border-border p-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center text-[#1877F2]">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.5 1.6-1.5h1.7V5c-.3 0-1.4-.1-2.6-.1-2.6 0-4.3 1.6-4.3 4.5V11H7v3h2.9v8h3.6z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Facebook OAuth</h3>
+            <p className="text-xs text-muted-foreground">From Meta for Developers → App Settings → Basic</p>
+          </div>
+        </div>
+        <SecretInput label="App ID" field="facebook_app_id" placeholder="123456789012345" />
+        <SecretInput label="App Secret" field="facebook_app_secret" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+      </section>
 
       {/* Google */}
       <section className="bg-background rounded-xl border border-border p-6 space-y-4">

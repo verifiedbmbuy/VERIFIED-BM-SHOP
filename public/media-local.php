@@ -60,6 +60,29 @@ function buildPublicUrl($filePath) {
     return '/images/' . ltrim(str_replace('\\', '/', $filePath), '/');
 }
 
+function phpUploadErrorMessage($code) {
+    switch ((int)$code) {
+        case UPLOAD_ERR_OK:
+            return 'Upload completed.';
+        case UPLOAD_ERR_INI_SIZE:
+            return 'Uploaded file exceeds upload_max_filesize.';
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'Uploaded file exceeds MAX_FILE_SIZE from form.';
+        case UPLOAD_ERR_PARTIAL:
+            return 'Uploaded file was only partially uploaded.';
+        case UPLOAD_ERR_NO_FILE:
+            return 'No file was uploaded.';
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return 'Missing temporary folder (upload_tmp_dir).';
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'Failed to write file to disk.';
+        case UPLOAD_ERR_EXTENSION:
+            return 'A PHP extension stopped the upload.';
+        default:
+            return 'Unknown PHP upload error.';
+    }
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 
 if ($action === 'list') {
@@ -75,8 +98,43 @@ if ($action === 'upload') {
         jsonResponse(['error' => 'Method not allowed'], 405);
     }
 
-    if (!isset($_FILES['file']) || !is_uploaded_file($_FILES['file']['tmp_name'])) {
-        jsonResponse(['error' => 'No file uploaded'], 400);
+    if (!isset($_FILES['file'])) {
+        $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+        $postMax = (string)ini_get('post_max_size');
+        $uploadMax = (string)ini_get('upload_max_filesize');
+        jsonResponse([
+            'error' => 'No file uploaded',
+            'details' => [
+                'hint' => 'Request reached PHP but $_FILES["file"] is empty. Check form-data field name, ModSecurity, and PHP limits.',
+                'content_length' => $contentLength,
+                'post_max_size' => $postMax,
+                'upload_max_filesize' => $uploadMax,
+            ],
+        ], 400);
+    }
+
+    $uploadError = isset($_FILES['file']['error']) ? (int)$_FILES['file']['error'] : UPLOAD_ERR_NO_FILE;
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        jsonResponse([
+            'error' => 'Upload rejected by PHP',
+            'details' => [
+                'php_upload_error_code' => $uploadError,
+                'php_upload_error_message' => phpUploadErrorMessage($uploadError),
+                'post_max_size' => (string)ini_get('post_max_size'),
+                'upload_max_filesize' => (string)ini_get('upload_max_filesize'),
+                'upload_tmp_dir' => (string)ini_get('upload_tmp_dir'),
+            ],
+        ], 400);
+    }
+
+    if (!is_uploaded_file($_FILES['file']['tmp_name'])) {
+        jsonResponse([
+            'error' => 'Upload temp file is invalid',
+            'details' => [
+                'hint' => 'Temporary upload file was not accepted by PHP. Check upload_tmp_dir and server security rules.',
+                'tmp_name' => isset($_FILES['file']['tmp_name']) ? (string)$_FILES['file']['tmp_name'] : '',
+            ],
+        ], 400);
     }
 
     $prefix = isset($_POST['pathPrefix']) ? safePrefix($_POST['pathPrefix']) : '';

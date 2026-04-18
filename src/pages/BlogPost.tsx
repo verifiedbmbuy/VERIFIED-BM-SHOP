@@ -1,11 +1,9 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import Layout from "@/components/layout/Layout";
 import SEOHead from "@/components/seo/SEOHead";
 import JsonLdSchema from "@/components/seo/JsonLdSchema";
-import CommentSection from "@/components/blog/CommentSection";
 import BlogScrollProgress from "@/components/blog/BlogScrollProgress";
 import BlogTableOfContents from "@/components/blog/BlogTableOfContents";
 import { toBrandedUrl } from "@/lib/imageUtils";
@@ -14,7 +12,7 @@ import QuickSummaryBox from "@/components/blog/QuickSummaryBox";
 import BlogFAQAccordion from "@/components/blog/BlogFAQAccordion";
 import AboutAuthorCard from "@/components/blog/AboutAuthorCard";
 import SocialShareButtons from "@/components/shared/SocialShareButtons";
-import { toBrandedUrl } from "@/lib/imageUtils";
+import { PUBLIC_BLOG_POSTS } from "@/data/publicContent";
 import { ArrowLeft, Clock, CalendarDays, User } from "lucide-react";
 
 /** Try to extract FAQ items from the HTML content (from AI-generated posts) */
@@ -56,18 +54,8 @@ function addHeadingIds(html: string): string {
 
 const BlogPost = () => {
   const { slug } = useParams();
-  const [post, setPost] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const fetchPost = async () => {
-      const { data } = await supabase.from("blog_posts").select("*").eq("slug", slug).single();
-      setPost(data);
-      setLoading(false);
-    };
-    if (slug) fetchPost();
-  }, [slug]);
+  const post = useMemo(() => PUBLIC_BLOG_POSTS.find((item) => item.slug === slug) || null, [slug]);
 
   const sanitizedContent = useMemo(() => {
     if (!post) return "";
@@ -127,12 +115,6 @@ const BlogPost = () => {
     return toBrandedUrl(post.featured_image);
   }, [post]);
 
-  if (loading)
-    return (
-      <Layout>
-        <div className="py-24 text-center text-muted-foreground">Loading...</div>
-      </Layout>
-    );
   if (!post)
     return (
       <Layout>
@@ -250,8 +232,10 @@ const BlogPost = () => {
               {/* About Author */}
               <AboutAuthorCard authorName={post.author || "Verified BM Shop Team"} />
 
-              {/* Comments */}
-              <CommentSection postId={post.id} />
+              <div className="mt-12 border-t border-border pt-8 rounded-xl bg-card p-6">
+                <h2 className="text-xl font-bold text-foreground mb-2">Comments</h2>
+                <p className="text-sm text-muted-foreground">Comments are currently disabled on the static public version of the site.</p>
+              </div>
             </article>
 
             {/* Sidebar — 25% */}

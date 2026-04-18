@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toBrandedUrl } from "@/lib/imageUtils";
 import { ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PUBLIC_PRODUCTS } from "@/data/publicContent";
 
 interface Product {
   id: string;
@@ -17,21 +17,7 @@ interface Product {
 }
 
 const FeaturedProductWidget = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("products")
-        .select("id, title, slug, price, sale_price, image_url, rating, short_description")
-        .eq("is_featured", true)
-        .eq("stock_status", "in_stock")
-        .order("sort_order", { ascending: true })
-        .limit(2);
-      if (data) setProducts(data);
-    };
-    fetch();
-  }, []);
+  const products = useMemo(() => PUBLIC_PRODUCTS.slice(0, 2) as unknown as Product[], []);
 
   if (products.length === 0) return null;
 

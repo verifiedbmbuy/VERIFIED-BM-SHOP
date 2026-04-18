@@ -5,11 +5,72 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const PRODUCTION_SUPABASE_URL = 'https://xukkejkvcgixogvbllmf.supabase.co';
+const PRODUCTION_SUPABASE_PUBLISHABLE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1a2tlamt2Y2dpeG9ndmJsbG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjE5OTUsImV4cCI6MjA4NjY5Nzk5NX0.OAYDM8SFgKAXSN1WMlHkJIwMSA4xwgvH3m05TwUJky0';
+
+const isLocalSupabaseUrl = (value?: string) =>
+  !!value && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(value);
+
+const isLocalSupabasePublishableKey = (value?: string) =>
+  !!value && /^sb_publishable_/i.test(value);
+
+const getRuntimeHost = () => {
+  if (typeof window === 'undefined') return null;
+  return window.location.hostname.toLowerCase();
+};
+
+const isPublicHost = (host: string | null) =>
+  !!host && host !== 'localhost' && host !== '127.0.0.1' && host !== '::1';
+
+const resolveSupabaseUrl = () => {
+  const configuredUrl = SUPABASE_URL?.trim();
+  const host = getRuntimeHost();
+
+  if (!configuredUrl) return PRODUCTION_SUPABASE_URL;
+
+  if (host === null) return configuredUrl;
+
+  if (isPublicHost(host) && isLocalSupabaseUrl(configuredUrl)) {
+    console.warn(
+      [
+        `Detected local Supabase URL (${configuredUrl}) on public host (${host}).`,
+        `Falling back to production Supabase URL (${PRODUCTION_SUPABASE_URL}).`,
+      ].join(' ')
+    );
+    return PRODUCTION_SUPABASE_URL;
+  }
+
+  return configuredUrl;
+};
+
+const resolveSupabasePublishableKey = () => {
+  const configuredKey = SUPABASE_PUBLISHABLE_KEY?.trim();
+  const host = getRuntimeHost();
+
+  if (!configuredKey) return PRODUCTION_SUPABASE_PUBLISHABLE_KEY;
+
+  if (host === null) return configuredKey;
+
+  if (isPublicHost(host) && isLocalSupabasePublishableKey(configuredKey)) {
+    console.warn(
+      [
+        'Detected local Supabase publishable key on a public host.',
+        'Falling back to production publishable key.',
+      ].join(' ')
+    );
+    return PRODUCTION_SUPABASE_PUBLISHABLE_KEY;
+  }
+
+  return configuredKey;
+};
+
+const RESOLVED_SUPABASE_URL = resolveSupabaseUrl();
+const RESOLVED_SUPABASE_PUBLISHABLE_KEY = resolveSupabasePublishableKey();
 
 const isDev = import.meta.env.DEV;
 const allowProdDataInDev = import.meta.env.VITE_ALLOW_PROD_DATA_IN_DEV === 'true';
 const blockWritesInDev = import.meta.env.VITE_BLOCK_WRITES_IN_DEV !== 'false';
-const usingProductionSupabase = SUPABASE_URL === PRODUCTION_SUPABASE_URL;
+const usingProductionSupabase = RESOLVED_SUPABASE_URL === PRODUCTION_SUPABASE_URL;
 export const isLocalProtectedMode =
   isDev && usingProductionSupabase && !allowProdDataInDev && blockWritesInDev;
 
@@ -39,7 +100,7 @@ const guardedFetch: typeof fetch = async (input, init) => {
   const url = getRequestUrl(input);
   const method = getRequestMethod(input, init);
   const isWriteMethod = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
-  const isSupabaseRequest = url.startsWith(SUPABASE_URL);
+  const isSupabaseRequest = url.startsWith(RESOLVED_SUPABASE_URL);
   const isAuthRequest = url.includes('/auth/v1/');
 
   const shouldBlockWrite =
@@ -68,7 +129,7 @@ const guardedFetch: typeof fetch = async (input, init) => {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(RESOLVED_SUPABASE_URL, RESOLVED_SUPABASE_PUBLISHABLE_KEY, {
   global: {
     fetch: guardedFetch,
   },

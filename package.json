@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "supabase:start": "node scripts/supabase-start-local.mjs",
+    "supabase:stop": "npx supabase stop",
     "build": "tsx scripts/generate-sitemap.ts && vite build",
     "build:dev": "tsx scripts/generate-sitemap.ts && vite build --mode development",
     "lint": "eslint .",

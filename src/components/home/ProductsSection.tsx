@@ -1,66 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import ProductCard from "@/components/shared/ProductCard";
+import { PUBLIC_PRODUCTS } from "@/data/publicContent";
 
 const categories = ["All", "Verified BM", "WhatsApp API", "Facebook Accounts", "TikTok Ads", "Google Ads", "Reinstated Profiles", "Snapchat Ads"];
 
-const CACHE_KEY = "vbb_products_cache";
-const CACHE_TTL = 5 * 60 * 1000;
-
 const ProductsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [displayCount, setDisplayCount] = useState(6);
-  const fetchedRef = useRef(false);
-
-  useEffect(() => {
-    const fetchCount = async () => {
-      const { data } = await supabase
-        .from("site_settings")
-        .select("value")
-        .eq("key", "homepage_product_count")
-        .single();
-      if (data?.value) {
-        const num = parseInt(data.value, 10);
-        if ([3, 6, 9, 12].includes(num)) setDisplayCount(num);
-      }
-    };
-    fetchCount();
-  }, []);
-
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL) {
-          setProducts(data);
-          setLoading(false);
-        } else {
-          setProducts(data);
-          setLoading(false);
-        }
-      } catch { /* corrupt cache */ }
-    }
-
-    const fetchProducts = async () => {
-      const { data } = await supabase
-        .from("products")
-        .select("id,title,slug,short_description,price,sale_price,category,badge,image_url,rating,stock_status,sort_order")
-        .order("sort_order", { ascending: true });
-      if (data) {
-        setProducts(data);
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-      }
-      setLoading(false);
-    };
-    fetchProducts();
-  }, []);
-
+  const displayCount = 6;
+  const products = [...PUBLIC_PRODUCTS].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const filtered = activeCategory === "All" ? products : products.filter((p) => p.category === activeCategory);
   const displayed = filtered.slice(0, displayCount);
 
@@ -90,23 +37,19 @@ const ProductsSection = () => {
           ))}
         </nav>
 
-        {loading ? (
-          <div className="text-center py-12 text-muted-foreground" role="status">Loading products...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10" role="list" aria-label="Product listings">
-            {displayed.map((product, idx) => (
-              <div key={product.id} className="flex" role="listitem">
-                {idx >= 3 ? (
-                  <div className="w-full" style={{ contentVisibility: "auto" }}>
-                    <ProductCard product={product} />
-                  </div>
-                ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10" role="list" aria-label="Product listings">
+          {displayed.map((product, idx) => (
+            <div key={product.id} className="flex" role="listitem">
+              {idx >= 3 ? (
+                <div className="w-full" style={{ contentVisibility: "auto" }}>
                   <ProductCard product={product} />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                </div>
+              ) : (
+                <ProductCard product={product} />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

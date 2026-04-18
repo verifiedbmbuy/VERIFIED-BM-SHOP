@@ -1,8 +1,11 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const SETTING_PREFIX = "setting:";
 
 interface EditModeContextType {
   isEditMode: boolean;
@@ -26,6 +29,7 @@ export const useEditMode = () => {
 export const EditModeProvider = ({ children }: { children: ReactNode }) => {
   const [searchParams] = useSearchParams();
   const { role, user } = useAuth();
+  const queryClient = useQueryClient();
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -43,33 +47,59 @@ export const EditModeProvider = ({ children }: { children: ReactNode }) => {
     if (!hasChanges) return;
     setSaving(true);
     try {
-      // Fetch current content
-      const { data } = await supabase
-        .from("pages")
-        .select("content")
-        .eq("slug", slug)
-        .single();
+      const pageEntries = Object.entries(pendingChanges).filter(([key]) => !key.startsWith(SETTING_PREFIX));
+      const settingEntries = Object.entries(pendingChanges).filter(([key]) => key.startsWith(SETTING_PREFIX));
 
-      let existing: Record<string, string> = {};
-      if (data?.content) {
-        try { existing = JSON.parse(data.content); } catch {}
+      if (pageEntries.length > 0) {
+        const { data } = await supabase
+          .from("pages")
+          .select("content")
+          .eq("slug", slug)
+          .maybeSingle();
+
+        let existing: Record<string, string> = {};
+        if (data?.content) {
+          try { existing = JSON.parse(data.content); } catch {}
+        }
+
+        const merged = { ...existing, ...Object.fromEntries(pageEntries) };
+        const { error } = await supabase
+          .from("pages")
+          .update({ content: JSON.stringify(merged), updated_at: new Date().toISOString() })
+          .eq("slug", slug);
+
+        if (error) throw error;
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["page-content", slug] }),
+          queryClient.invalidateQueries({ queryKey: ["page-components", slug] }),
+        ]);
       }
 
-      const merged = { ...existing, ...pendingChanges };
-      const { error } = await supabase
-        .from("pages")
-        .update({ content: JSON.stringify(merged), updated_at: new Date().toISOString() })
-        .eq("slug", slug);
+      if (settingEntries.length > 0) {
+        const settingsPayload = settingEntries.map(([key, value]) => ({
+          key: key.replace(SETTING_PREFIX, ""),
+          value,
+        }));
+        const { error } = await supabase
+          .from("site_settings")
+          .upsert(settingsPayload, { onConflict: "key" });
 
-      if (error) throw error;
+        if (error) throw error;
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["footer-settings"] }),
+          queryClient.invalidateQueries({ queryKey: ["branding"] }),
+        ]);
+      }
+
       setPendingChanges({});
+      localStorage.removeItem("editmode_draft");
       toast.success("Changes published successfully!");
     } catch (e: any) {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, pendingChanges]);
+  }, [hasChanges, pendingChanges, queryClient]);
 
   const discardChanges = useCallback(() => {
     setPendingChanges({});

@@ -1,16 +1,13 @@
 /**
  * Build-time Sitemap Generator
- * Fetches the dynamic sitemap from the Edge Function and writes it
- * as a static sitemap.xml into /public so the hosting can serve it directly.
+ * Builds a static sitemap.xml from database content and writes it
+ * into /public so hosting can serve it directly.
  */
-
-const EDGE_FUNCTION_URL =
-  "https://xukkejkvcgixogvbllmf.supabase.co/functions/v1/sitemap";
 
 const SUPABASE_URL = "https://xukkejkvcgixogvbllmf.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1a2tlamt2Y2dpeG9ndmJsbG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjE5OTUsImV4cCI6MjA4NjY5Nzk5NX0.OAYDM8SFgKAXSN1WMlHkJIwMSA4xwgvH3m05TwUJky0";
-const BASE_URL = "https://verifiedbm.shop";
+const BASE_URL = (process.env.SITEMAP_BASE_URL || "https://verifiedbm.shop").replace(/\/+$/, "");
 
 interface BlogPost {
   slug: string;

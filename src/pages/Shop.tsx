@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import SEOHead from "@/components/seo/SEOHead";
 import JsonLdSchema from "@/components/seo/JsonLdSchema";
 import PageHeader from "@/components/layout/PageHeader";
 import ProductCard from "@/components/shared/ProductCard";
 import { usePageSEO } from "@/hooks/usePageSEO";
+import { usePageContent } from "@/hooks/usePageContent";
+import EditableText from "@/components/editor/EditableText";
 import { getSiteUrl } from "@/lib/config";
+import { PUBLIC_PRODUCTS } from "@/data/publicContent";
 
 const categories = ["All", "Verified BM", "WhatsApp API", "Facebook Accounts", "TikTok Ads", "Reinstated Profiles"];
 
@@ -43,18 +45,9 @@ const AggregateOfferSchema = ({ products }: { products: any[] }) => {
 const Shop = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products] = useState<any[]>([...PUBLIC_PRODUCTS]);
   const { pageSEO } = usePageSEO("shop");
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const { data } = await supabase.from("products").select("*").order("sort_order", { ascending: true });
-      setProducts(data || []);
-      setLoading(false);
-    };
-    fetchProducts();
-  }, []);
+  const { content } = usePageContent("shop");
 
   const filtered = products.filter((p) => {
     const matchesCategory = activeCategory === "All" || p.category === activeCategory;
@@ -73,9 +66,14 @@ const Shop = () => {
       <AggregateOfferSchema products={products} />
       <PageHeader
         breadcrumb="Shop"
-        subtitle="BROWSE & BUY"
-        title={pageSEO?.title || "Our Products"}
-        description={pageSEO?.meta_description || "Premium verified Meta accounts, WhatsApp API access, and more. All with instant delivery and 7-day replacement guarantee."}
+        subtitle={content.header_subtitle || "BROWSE & BUY"}
+        title={content.header_title || pageSEO?.title || "Our Products"}
+        description={content.header_description || pageSEO?.meta_description || "Premium verified Meta accounts, WhatsApp API access, and more. All with instant delivery and 7-day replacement guarantee."}
+        editableKeys={{
+          subtitle: "header_subtitle",
+          title: "header_title",
+          description: "header_description",
+        }}
         showSearch
         searchValue={search}
         onSearchChange={setSearch}
@@ -99,10 +97,14 @@ const Shop = () => {
             ))}
           </div>
 
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading products...</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">No products found.</div>
+          {filtered.length === 0 ? (
+            <EditableText
+              fieldKey="shop_empty_text"
+              value={content.shop_empty_text || ""}
+              fallback="No products found."
+              as="div"
+              className="text-center py-12 text-muted-foreground"
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((product) => (

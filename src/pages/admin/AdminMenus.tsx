@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,22 @@ const positions = [
   { value: "header", label: "Header Menu" },
   { value: "footer-quick", label: "Footer – Quick Links" },
   { value: "footer-trust", label: "Footer – Trust Center" },
+];
+
+const defaultMenuItems = [
+  { label: "Home", url: "/", position: "header", sort_order: 0, icon: null, icon_name: null },
+  { label: "Shop", url: "/shop", position: "header", sort_order: 1, icon: null, icon_name: null },
+  { label: "Blog", url: "/blog", position: "header", sort_order: 2, icon: null, icon_name: null },
+  { label: "About", url: "/about", position: "header", sort_order: 3, icon: null, icon_name: null },
+  { label: "Contact", url: "/contact", position: "header", sort_order: 4, icon: null, icon_name: null },
+  { label: "Shop", url: "/shop", position: "footer-quick", sort_order: 0, icon: null, icon_name: null },
+  { label: "Blog", url: "/blog", position: "footer-quick", sort_order: 1, icon: null, icon_name: null },
+  { label: "FAQ", url: "/faq", position: "footer-quick", sort_order: 2, icon: null, icon_name: null },
+  { label: "Contact", url: "/contact", position: "footer-quick", sort_order: 3, icon: null, icon_name: null },
+  { label: "Terms", url: "/terms", position: "footer-trust", sort_order: 0, icon: null, icon_name: null },
+  { label: "Privacy", url: "/privacy", position: "footer-trust", sort_order: 1, icon: null, icon_name: null },
+  { label: "Refund Policy", url: "/refund-policy", position: "footer-trust", sort_order: 2, icon: null, icon_name: null },
+  { label: "Replacement Guarantee", url: "/replacement-guarantee", position: "footer-trust", sort_order: 3, icon: null, icon_name: null },
 ];
 
 const AdminMenus = () => {
@@ -81,6 +97,19 @@ const AdminMenus = () => {
     },
   });
 
+  const seedDefaultsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("menus").insert(defaultMenuItems);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-menus"] });
+      queryClient.invalidateQueries({ queryKey: ["menus"] });
+      toast({ title: "Default navigation menus added" });
+    },
+    onError: () => toast({ title: "Could not add default menus", variant: "destructive" }),
+  });
+
   const closeDialog = () => {
     setDialogOpen(false);
     setEditing(null);
@@ -115,7 +144,25 @@ const AdminMenus = () => {
   const renderList = (position: string) => {
     const filtered = items.filter(i => i.position === position);
     if (isLoading) return <div className="py-8 text-center text-muted-foreground text-sm">Loading…</div>;
-    if (!filtered.length) return <div className="py-8 text-center text-muted-foreground text-sm">No menu items yet. Click "Add Item" to create one.</div>;
+    if (!filtered.length) {
+      return (
+        <div className="py-8 text-center text-muted-foreground text-sm space-y-3">
+          <p>No menu items yet. Click "Add Item" to create one.</p>
+          {items.length === 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => seedDefaultsMutation.mutate()}
+              disabled={seedDefaultsMutation.isPending}
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              {seedDefaultsMutation.isPending ? "Adding Default Menus..." : "Load Default Menus"}
+            </Button>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-1">

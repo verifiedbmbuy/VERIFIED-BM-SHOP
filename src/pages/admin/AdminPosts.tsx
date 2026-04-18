@@ -52,15 +52,6 @@ interface BlogPost {
   status: string;
 }
 
-const mockPosts: BlogPost[] = [
-  { id: "mock-1", title: "How to Get a Verified Business Manager in 2026", slug: "get-verified-bm-2026", content: "Complete guide to obtaining a verified BM…", excerpt: "Step-by-step guide for advertisers.", featured_image: null, category: "Verified BM", read_time: "8 min read", published_at: "2026-02-10T12:00:00Z", created_at: "2026-02-10T12:00:00Z", author: "Sarah Johnson", status: "published" },
-  { id: "mock-2", title: "WhatsApp API: Everything You Need to Know", slug: "whatsapp-api-guide", content: "The WhatsApp Business API allows…", excerpt: "A deep dive into WhatsApp API features.", featured_image: null, category: "WhatsApp API", read_time: "12 min read", published_at: "2026-02-08T09:00:00Z", created_at: "2026-02-08T09:00:00Z", author: "Mike Chen", status: "published" },
-  { id: "mock-3", title: "5 Common Reasons BMs Get Restricted", slug: "bm-restriction-reasons", content: "Business Managers can be restricted for…", excerpt: "Avoid these mistakes to keep your BM safe.", featured_image: null, category: "Tips & Guides", read_time: "6 min read", published_at: null, created_at: "2026-02-05T14:30:00Z", author: "Admin", status: "draft" },
-  { id: "mock-4", title: "Scaling Facebook Ads with Verified BMs", slug: "scaling-ads-verified-bm", content: "Verified Business Managers unlock higher…", excerpt: "Learn how verified BMs boost your ad performance.", featured_image: null, category: "Verified BM", read_time: "10 min read", published_at: "2026-01-28T11:00:00Z", created_at: "2026-01-28T11:00:00Z", author: "Sarah Johnson", status: "published" },
-  { id: "mock-5", title: "TikTok Ads vs Facebook Ads: 2026 Comparison", slug: "tiktok-vs-facebook-2026", content: "Both platforms offer unique advantages…", excerpt: "Which platform delivers better ROI?", featured_image: null, category: "Guides", read_time: "15 min read", published_at: "2026-01-20T08:00:00Z", created_at: "2026-01-20T08:00:00Z", author: "Mike Chen", status: "published" },
-  { id: "mock-6", title: "Setting Up WhatsApp API for E-Commerce", slug: "whatsapp-ecommerce-setup", content: "E-commerce businesses can leverage…", excerpt: "Integrate WhatsApp into your online store.", featured_image: null, category: "WhatsApp API", read_time: "9 min read", published_at: null, created_at: "2026-01-15T16:00:00Z", author: "Admin", status: "draft" },
-];
-
 
 
 
@@ -85,10 +76,11 @@ const AdminPosts = () => {
       .from("blog_posts")
       .select("*")
       .order("created_at", { ascending: false });
-    if (!error && data && data.length > 0) {
-      setPosts(data as unknown as BlogPost[]);
+    if (error) {
+      toast.error("Failed to load posts.");
+      setPosts([]);
     } else {
-      setPosts(mockPosts);
+      setPosts((data as unknown as BlogPost[]) || []);
     }
     setLoading(false);
   };
@@ -99,12 +91,6 @@ const AdminPosts = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    if (deleteId.startsWith("mock-")) {
-      setPosts((prev) => prev.filter((p) => p.id !== deleteId));
-      toast.success("Post deleted.");
-      setDeleteId(null);
-      return;
-    }
     const { error } = await supabase.from("blog_posts").delete().eq("id", deleteId);
     if (error) toast.error("Failed to delete post.");
     else toast.success("Post deleted.");
@@ -145,7 +131,6 @@ const AdminPosts = () => {
     setBulkScanning(true);
     let fixCount = 0;
     for (const p of posts) {
-      if (p.id.startsWith("mock-")) continue;
       const result = seoScores.get(p.id);
       if (!result || result.score >= 80) continue;
       try {
@@ -224,7 +209,7 @@ const AdminPosts = () => {
             <p className="text-sm text-muted-foreground mb-4">
               {search || statusFilter !== "all"
                 ? "Try adjusting your search or filter."
-                : "Get started by creating your first blog post."}
+                : "No real blog posts exist yet. Create one here and it will appear on the public website when published."}
             </p>
             {!search && statusFilter === "all" && (
               <Button onClick={() => navigate("/admin/posts/new")} className="gap-2">

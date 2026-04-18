@@ -92,8 +92,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message || null };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error?.message || null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isNetworkError = /failed to fetch|networkerror|network request failed/i.test(message);
+
+      if (isNetworkError) {
+        return {
+          error:
+            "Network error while contacting the auth server. Check internet/firewall/ad-blocker and verify Supabase URL settings.",
+        };
+      }
+
+      return { error: message || "Unable to sign in right now." };
+    }
   };
 
   const signOut = async () => {

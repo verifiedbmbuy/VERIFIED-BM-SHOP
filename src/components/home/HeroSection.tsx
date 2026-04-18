@@ -2,7 +2,10 @@ import { memo, useMemo } from "react";
 import { Shield, Award, Clock, Truck, Star, MessageCircle, Send, Facebook, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBranding } from "@/hooks/useBranding";
-import { getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
+import { usePageContent } from "@/hooks/usePageContent";
+import EditableText from "@/components/editor/EditableText";
+import heroFallbackLogo from "@/assets/verified-bm-services-header.png";
+import { toBrandedUrl } from "@/lib/imageUtils";
 
 const stats = [
   { icon: Shield, label: "Verified Accounts", value: "100%" },
@@ -11,13 +14,24 @@ const stats = [
   { icon: Truck, label: "Delivery", value: "Instant" },
 ];
 
+const isUnstableBuildAssetPath = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith("/assets/") || normalized.startsWith("assets/");
+};
+
 const HeroSection = () => {
   const { branding } = useBranding();
-  const staticHeroFallback = "/images/vbb-logo.png";
+  const { content } = usePageContent("verified-bm");
+  const fallbackHeroLogo = heroFallbackLogo;
   const heroLogo = useMemo(() => {
-    if (branding.homepage_hero_logo) return toBrandedUrl(branding.homepage_hero_logo);
-    return getAdminMediaUrl("branding/vbb-logo.png");
-  }, [branding.homepage_hero_logo]);
+    const configuredLogo = branding.homepage_hero_logo?.trim();
+    if (!configuredLogo) return fallbackHeroLogo;
+
+    // Build output paths like /assets/* are hash-based and can go stale in live data.
+    if (isUnstableBuildAssetPath(configuredLogo)) return fallbackHeroLogo;
+
+    return toBrandedUrl(configuredLogo);
+  }, [branding.homepage_hero_logo, fallbackHeroLogo]);
 
   return (
     <section
@@ -39,22 +53,31 @@ const HeroSection = () => {
                     background: "conic-gradient(from 0deg, hsl(var(--primary)), hsl(22 90% 55%), hsl(var(--primary)), hsl(22 90% 55%))",
                   }}
                 />
-                <img
-                  src={heroLogo}
-                  alt="Verified BM Shop — trusted provider of verified Meta Business Manager and WhatsApp API accounts"
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    if (img.src !== window.location.origin + staticHeroFallback) {
-                      img.src = staticHeroFallback;
-                    }
-                  }}
-                  className="relative z-10 h-56 w-56 rounded-[21px] object-contain sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-64 lg:w-64 bg-background"
-                  loading="eager"
-                  fetchPriority="high"
-                  decoding="sync"
-                  width={288}
-                  height={288}
-                />
+                {heroLogo ? (
+                  <img
+                    src={heroLogo}
+                    alt="Verified BM Shop — trusted provider of verified Meta Business Manager and WhatsApp API accounts"
+                    onLoad={(e) => {
+                      e.currentTarget.style.visibility = "visible";
+                    }}
+                    onError={(e) => {
+                      if (e.currentTarget.src !== fallbackHeroLogo) {
+                        e.currentTarget.style.visibility = "visible";
+                        e.currentTarget.src = fallbackHeroLogo;
+                        return;
+                      }
+
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
+                    className="relative z-10 h-56 w-56 rounded-[21px] object-contain sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-64 lg:w-64 bg-background"
+                    loading="eager"
+                    fetchpriority="high"
+                    decoding="async"
+                    sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, 288px"
+                    width={288}
+                    height={288}
+                  />
+                ) : null}
             </div>
           </div>
 
@@ -64,7 +87,12 @@ const HeroSection = () => {
             <div className="animate-hero-fade-right" style={{ animationDelay: "0.15s" }}>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary">
                 <Star className="h-3.5 w-3.5 fill-primary" aria-hidden="true" />
-                Trusted by 10,000+ Advertisers
+                <EditableText
+                  fieldKey="hero_badge"
+                  value={content.hero_badge || ""}
+                  fallback="Trusted by 10,000+ Advertisers"
+                  as="span"
+                />
                 <span className="h-1.5 w-1.5 rounded-full bg-[hsl(142,70%,45%)] animate-pulse" aria-hidden="true" />
               </div>
             </div>
@@ -75,18 +103,32 @@ const HeroSection = () => {
               style={{ animationDelay: "0.25s" }}
             >
               <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl md:text-[2.75rem] lg:text-[2.85rem] xl:text-[3.25rem]">
-                Buy <span className="text-primary">Verified BM</span>
-                <span className="mt-3 block text-[1.35rem] sm:text-4xl md:text-[2.75rem] lg:text-[2.85rem] xl:text-[3.25rem]">And <span className="text-[hsl(142,70%,45%)]">WhatsApp Business API</span></span>
+                Buy <EditableText
+                  fieldKey="hero_title"
+                  value={content.hero_title || ""}
+                  fallback="Verified BM"
+                  as="span"
+                  className="text-primary"
+                />
+                <EditableText
+                  fieldKey="hero_subtitle"
+                  value={content.hero_subtitle || ""}
+                  fallback="And WhatsApp Business API"
+                  as="span"
+                  className="mt-3 block text-[1.35rem] text-[#f05a28] sm:text-4xl md:text-[2.75rem] lg:text-[2.85rem] xl:text-[3.25rem]"
+                />
               </h1>
             </div>
 
             {/* Description — keyword-rich, scannable */}
-            <p
+            <EditableText
+              fieldKey="hero_description"
+              value={content.hero_description || ""}
+              fallback="We sell <strong>verified Facebook Business Managers</strong> and <strong>WhatsApp Business API</strong> accounts — the real deal, with proper documentation. Need Facebook Ads, TikTok Ads, Google Ads accounts, or reinstated profiles? We've got those too. Every <strong>Meta advertising asset</strong> is legit, secure, and ready to use. Over <strong>10,000 advertisers</strong> trust us because we deliver what we promise, fast."
+              as="div"
+              richText
               className="mb-8 text-sm text-muted-foreground md:text-base leading-relaxed text-center lg:text-justify animate-hero-fade-right"
-              style={{ animationDelay: "0.35s" }}
-            >
-              We sell <strong>verified Facebook Business Managers</strong> and <strong>WhatsApp Business API</strong> accounts — the real deal, with proper documentation. Need Facebook Ads, TikTok Ads, Google Ads accounts, or reinstated profiles? We've got those too. Every <strong>Meta advertising asset</strong> is legit, secure, and ready to use. Over <strong>10,000 advertisers</strong> trust us because we deliver what we promise, fast.
-            </p>
+              />
 
             {/* Contact buttons — descriptive anchor text */}
             <nav

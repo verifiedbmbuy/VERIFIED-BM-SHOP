@@ -1,42 +1,60 @@
 # =============================================
-# robots.txt — Verified BM Shop
+# robots.txt - Verified BM Shop
 # =============================================
 
 User-agent: Googlebot
-Allow: /admin/media/
 Allow: /
 Disallow: /admin/
 Disallow: /checkout
 Disallow: /admin/login
 
 User-agent: Bingbot
-Allow: /admin/media/
 Allow: /
 Disallow: /admin/
 Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: SemrushBot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: SiteAuditBot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: GPTBot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
 User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /checkout
+Disallow: /admin/login
 
 # Sitemap
 Sitemap: https://verifiedbm.shop/sitemap.xml

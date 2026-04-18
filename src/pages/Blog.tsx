@@ -1,29 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import SEOHead from "@/components/seo/SEOHead";
 import PageHeader from "@/components/layout/PageHeader";
 import { Clock, ArrowRight } from "lucide-react";
 import { usePageSEO } from "@/hooks/usePageSEO";
 import { toBrandedUrl } from "@/lib/imageUtils";
+import { PUBLIC_BLOG_POSTS } from "@/data/publicContent";
 
 const categories = ["All", "Verified BM", "WhatsApp API", "Tips & Guides", "Guides"];
 
 const Blog = () => {
   const [activeCategory, setActiveCategory] = useState("All");
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const posts = [...PUBLIC_BLOG_POSTS];
   const { pageSEO } = usePageSEO("blog");
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      const { data } = await supabase.from("blog_posts").select("*").order("published_at", { ascending: false });
-      setPosts(data || []);
-      setLoading(false);
-    };
-    fetchPosts();
-  }, []);
 
   const filtered = activeCategory === "All" ? posts : posts.filter((p) => p.category === activeCategory);
 
@@ -55,9 +45,7 @@ const Blog = () => {
             ))}
           </div>
 
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading posts...</div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">No blog posts found.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -754,8 +754,10 @@ const InternationalSEOPanel = () => {
 };
 
 // ─── Crawler & Indexing Panel ───────────────────────────────────────────────
+const SITE_ORIGIN = typeof window !== "undefined" ? window.location.origin : "https://verifiedbm.shop";
+
 const DEFAULT_ROBOTS = `# =============================================
-# robots.txt — Verified BM Shop
+# robots.txt - Verified BM Shop
 # =============================================
 
 User-agent: Googlebot
@@ -768,21 +770,46 @@ User-agent: Bingbot
 Allow: /
 Disallow: /admin/
 Disallow: /checkout
+Disallow: /admin/login
+
+User-agent: SemrushBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: SiteAuditBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
 
 User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /checkout
-Disallow: /api/
+Disallow: /admin/login
 
 # Sitemap
-Sitemap: https://verifiedbm.shop/sitemap.xml`;
+Sitemap: ${SITE_ORIGIN}/sitemap.xml`;
 
 const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, value: string) => Promise<void> }) => {
   const [robotsTxt, setRobotsTxt] = useState(DEFAULT_ROBOTS);
@@ -791,6 +818,8 @@ const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, valu
   const [pinging, setPinging] = useState(false);
   const [sitemapStats, setSitemapStats] = useState<{ pages: number; products: number; posts: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const sitemapUrl = `${window.location.origin}/sitemap.xml`;
+  const robotsUrl = `${window.location.origin}/robots.txt`;
 
   useEffect(() => {
     const load = async () => {
@@ -826,10 +855,11 @@ const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, valu
   const handleRegenerate = async () => {
     setRegenerating(true);
     try {
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sitemap`);
-      toast.success("Sitemap regenerated!");
+      const res = await fetch(`/sitemap.xml?ts=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Sitemap unavailable");
+      toast.success("Sitemap loaded from your site.");
     } catch {
-      toast.error("Failed to regenerate sitemap.");
+      toast.error("Could not load /sitemap.xml from this site.");
     }
     setRegenerating(false);
   };
@@ -837,8 +867,13 @@ const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, valu
   const handlePingGoogle = async () => {
     setPinging(true);
     try {
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sitemap?ping=true`);
-      toast.success("Google pinged with updated sitemap!");
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        toast("Google ping is disabled on localhost.", { description: "Deploy to your live domain first." });
+      } else {
+        const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+        await fetch(pingUrl, { mode: "no-cors" });
+        toast.success("Google ping requested.");
+      }
     } catch {
       toast.error("Failed to ping Google.");
     }
@@ -892,7 +927,7 @@ const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, valu
             {pinging ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
             Ping Google
           </Button>
-          <a href="https://verifiedbm.shop/sitemap.xml" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline self-center">
+          <a href={sitemapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline self-center">
             <Eye className="w-4 h-4" /> View Live Sitemap
           </a>
         </div>
@@ -917,7 +952,7 @@ const CrawlerIndexingPanel = ({ saveSetting }: { saveSetting: (key: string, valu
           <Button variant="outline" onClick={() => setRobotsTxt(DEFAULT_ROBOTS)} className="gap-2">
             <RefreshCw className="w-4 h-4" /> Reset to Default
           </Button>
-          <a href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/robots-txt`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline self-center">
+          <a href={robotsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline self-center">
             <Eye className="w-4 h-4" /> View Live
           </a>
         </div>
@@ -1139,16 +1174,55 @@ const BulkMetaEditor = () => {
 };
 
 /** ────────── ROBOTS & SITEMAP MANAGER ────────── */
-const DEFAULT_ROBOTS_TEMPLATE = `User-agent: *
+const DEFAULT_ROBOTS_TEMPLATE = `User-agent: Googlebot
 Allow: /
 Disallow: /admin/
-Disallow: /api/
-Disallow: /checkout/
+Disallow: /checkout
+Disallow: /admin/login
 
-User-agent: Googlebot
+User-agent: Bingbot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
 
-Sitemap: https://verifiedbm.shop/sitemap.xml`;
+User-agent: SemrushBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: SiteAuditBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: Twitterbot
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: facebookexternalhit
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /admin/login
+
+Sitemap: ${SITE_ORIGIN}/sitemap.xml`;
 
 const SITEMAP_PREVIEW = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -1176,6 +1250,7 @@ const RobotsSitemapManager = () => {
   const [subTab, setSubTab] = useState<"robots" | "sitemap">("robots");
   const [robotsContent, setRobotsContent] = useState(DEFAULT_ROBOTS_TEMPLATE);
   const [animated, setAnimated] = useState(false);
+  const sitemapUrl = `${window.location.origin}/sitemap.xml`;
 
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 100);
@@ -1253,7 +1328,7 @@ const RobotsSitemapManager = () => {
               </div>
             </div>
             <a
-              href="https://verifiedbm.shop/sitemap.xml"
+              href={sitemapUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-[#2271b1] hover:underline"

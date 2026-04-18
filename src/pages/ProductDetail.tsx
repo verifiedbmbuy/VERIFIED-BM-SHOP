@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/layout/Layout";
@@ -10,6 +9,7 @@ import JsonLdSchema from "@/components/seo/JsonLdSchema";
 import ProductCard from "@/components/shared/ProductCard";
 import { toBrandedUrl } from "@/lib/imageUtils";
 import SocialShareButtons from "@/components/shared/SocialShareButtons";
+import { PUBLIC_FAQS, PUBLIC_PRODUCTS, PUBLIC_REVIEWS, PUBLIC_TESTIMONIALS } from "@/data/publicContent";
 import {
   Star, Shield, Zap, Headphones, MessageCircle, Send,
   ChevronRight, Home, CheckCircle, XCircle, Lock, Truck,
@@ -40,25 +40,19 @@ const ProductDetail = () => {
   const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data } = await supabase.from("products").select("*").eq("slug", slug).single();
+    const data = PUBLIC_PRODUCTS.find((item) => item.slug === slug) || null;
       setProduct(data);
       if (data) {
         setActiveImage(data.image_url || "");
-        const [relRes, testRes, faqRes, reviewsRes] = await Promise.all([
-          supabase.from("products").select("*").eq("category", data.category).neq("id", data.id).limit(4),
-          supabase.from("testimonials").select("*").eq("status", "approved").order("sort_order").limit(6),
-          supabase.from("faqs").select("*").order("sort_order").limit(8),
-          supabase.from("product_reviews").select("*").eq("product_id", data.id).eq("status", "approved").order("created_at", { ascending: false }),
-        ]);
-        setRelated(relRes.data || []);
-        setTestimonials(testRes.data || []);
-        setFaqs(faqRes.data || []);
-        setReviews(reviewsRes.data || []);
+        setRelated(PUBLIC_PRODUCTS.filter((item) => item.category === data.category && item.id !== data.id).slice(0, 4));
+        setTestimonials([...PUBLIC_TESTIMONIALS]);
+        setFaqs([...PUBLIC_FAQS]);
+        setReviews([...PUBLIC_REVIEWS]);
       }
       setLoading(false);
-    };
-    if (slug) fetchData();
+    if (slug) {
+      // no-op block to preserve effect dependency behavior
+    }
   }, [slug]);
 
   // Scroll to #reviews hash when page loads
@@ -70,66 +64,8 @@ const ProductDetail = () => {
     }
   }, [loading]);
 
-  // Check if current user is a verified buyer
-  useEffect(() => {
-    const checkBuyerStatus = async () => {
-      if (!user?.email || !product?.id) return;
-      // Find completed orders for this user containing this product
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("customer_email", user.email)
-        .eq("status", "completed");
-      if (orders && orders.length > 0) {
-        const orderIds = orders.map((o) => o.id);
-        const { data: items } = await supabase
-          .from("order_items")
-          .select("order_id")
-          .eq("product_id", product.id)
-          .in("order_id", orderIds)
-          .limit(1);
-        if (items && items.length > 0) {
-          setCanReview(true);
-          setCompletedOrderId(items[0].order_id);
-        }
-      }
-      // Check for existing review
-      const { data: existing } = await supabase
-        .from("product_reviews")
-        .select("*")
-        .eq("product_id", product.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (existing) setExistingReview(existing);
-    };
-    checkBuyerStatus();
-  }, [user, product]);
-
   const handleSubmitReview = async () => {
-    if (!user || !product || !completedOrderId || !reviewText.trim()) return;
-    setSubmittingReview(true);
-    const { error } = await supabase.from("product_reviews").insert({
-      product_id: product.id,
-      user_id: user.id,
-      order_id: completedOrderId,
-      rating: reviewRating,
-      review_text: reviewText.trim(),
-    });
-    if (error) {
-      if (error.message?.includes("duplicate")) {
-        toast.error("You've already reviewed this product.");
-      } else {
-        toast.error("Failed to submit review.");
-      }
-    } else {
-      toast.success("Review submitted! Thank you.");
-      setReviewText("");
-      setExistingReview({ rating: reviewRating, review_text: reviewText });
-      // Refresh reviews
-      const { data } = await supabase.from("product_reviews").select("*").eq("product_id", product.id).eq("status", "approved").order("created_at", { ascending: false });
-      setReviews(data || []);
-    }
-    setSubmittingReview(false);
+    toast.info("Reviews are disabled on the static public version of this page.");
   };
 
   if (loading) return <Layout><div className="py-24 text-center text-muted-foreground">Loading...</div></Layout>;
@@ -223,7 +159,7 @@ const ProductDetail = () => {
                     alt={product.title}
                     className="w-full h-full object-cover"
                     loading="eager"
-                    fetchPriority="high"
+                    fetchpriority="high"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-lg">{product.category}</div>

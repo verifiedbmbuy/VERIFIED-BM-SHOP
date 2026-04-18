@@ -33,6 +33,7 @@ const DynamicPage = () => {
         .from("pages")
         .select("title, slug, content, meta_title, meta_description, components, hero_image, hero_overlay")
         .eq("slug", slug)
+        .eq("status", "published")
         .single();
       if (error || !data) throw new Error("Not found");
       return {

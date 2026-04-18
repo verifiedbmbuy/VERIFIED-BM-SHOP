@@ -1,11 +1,17 @@
 import { Link } from "react-router-dom";
 import { Home, ChevronRight } from "lucide-react";
+import EditableText from "@/components/editor/EditableText";
 
 interface PageHeaderProps {
   breadcrumb: string;
   title: string;
   subtitle?: string;
   description?: string;
+  editableKeys?: {
+    title?: string;
+    subtitle?: string;
+    description?: string;
+  };
   showSearch?: boolean;
   searchValue?: string;
   onSearchChange?: (val: string) => void;
@@ -16,6 +22,7 @@ const PageHeader = ({
   title,
   subtitle,
   description,
+  editableKeys,
   showSearch,
   searchValue,
   onSearchChange,
@@ -33,19 +40,46 @@ const PageHeader = ({
         </div>
 
         {subtitle && (
-          <p className="text-xs font-semibold tracking-widest uppercase text-primary-foreground/80 mb-1.5">
-            {subtitle}
-          </p>
+          editableKeys?.subtitle ? (
+            <EditableText
+              fieldKey={editableKeys.subtitle}
+              value={subtitle}
+              as="p"
+              className="text-xs font-semibold tracking-widest uppercase text-primary-foreground/80 mb-1.5"
+            />
+          ) : (
+            <p className="text-xs font-semibold tracking-widest uppercase text-primary-foreground/80 mb-1.5">
+              {subtitle}
+            </p>
+          )
         )}
 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground leading-tight">
-          {title}
-        </h1>
+        {editableKeys?.title ? (
+          <EditableText
+            fieldKey={editableKeys.title}
+            value={title}
+            as="h1"
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground leading-tight"
+          />
+        ) : (
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground leading-tight">
+            {title}
+          </h1>
+        )}
 
         {description && (
-          <p className="text-sm text-primary-foreground/80 max-w-xl mx-auto mt-1.5 leading-snug">
-            {description}
-          </p>
+          editableKeys?.description ? (
+            <EditableText
+              fieldKey={editableKeys.description}
+              value={description}
+              as="p"
+              className="text-sm text-primary-foreground/80 max-w-xl mx-auto mt-1.5 leading-snug"
+            />
+          ) : (
+            <p className="text-sm text-primary-foreground/80 max-w-xl mx-auto mt-1.5 leading-snug">
+              {description}
+            </p>
+          )
         )}
 
         {showSearch && (

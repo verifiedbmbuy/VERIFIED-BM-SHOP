@@ -305,7 +305,7 @@ const About = () => {
             </a>
             <a href="https://t.me/Verifiedbmbuy" target="_blank" rel="noopener noreferrer">
               <Button size="lg" className="h-12 rounded-xl px-8 font-bold bg-[hsl(200,100%,40%)] hover:bg-[hsl(200,100%,35%)] text-white gap-2">
-                <Send className="w-4 h-4" /> Telegram
+                <Send className="w-4 h-4" /> Chat on Telegram
               </Button>
             </a>
             <Link to="/shop">

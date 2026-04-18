@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+import { ReactNode, useEffect, useRef, useCallback, lazy, Suspense, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import AnnouncementBar from "./AnnouncementBar";
@@ -11,16 +11,15 @@ import { useEditMode } from "@/contexts/EditModeContext";
 // Defer heavy widgets — not needed for initial paint / LCP
 const AIChatWidget = lazy(() => import("@/components/chat/AIChatWidget"));
 const NewsletterPopup = lazy(() => import("@/components/newsletter/NewsletterPopup"));
-const InstallPrompt = lazy(() => import("@/components/pwa/InstallPrompt"));
 const FloatingEditBar = lazy(() => import("@/components/editor/FloatingEditBar"));
 const OrderThankYouPopup = lazy(() => import("@/components/layout/OrderThankYouPopup"));
 
-const EDITABLE_SELECTORS = "h1, h2, h3, h4, p, span, li";
+const EDITABLE_SELECTORS = "h1, h2, h3, h4, h5, h6, p, span, li, a, button, label, address, small, strong, em, div";
 
 const routeToSlug: Record<string, string> = {
-  "/": "home",
-  "/about": "about",
-  "/contact": "contact",
+  "/": "verified-bm",
+  "/about": "about-us",
+  "/contact": "contact-us",
   "/shop": "shop",
 };
 
@@ -28,6 +27,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const pathname = location.pathname;
   const { isEditMode, updateField } = useEditMode();
+  const [showDeferredWidgets, setShowDeferredWidgets] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
   let slug = routeToSlug[pathname] || "";
@@ -61,6 +61,10 @@ const Layout = ({ children }: { children: ReactNode }) => {
         const htmlEl = el as HTMLElement;
         // Skip elements inside the edit bar / toolbar
         if (htmlEl.closest("[data-edit-toolbar]") || htmlEl.closest("[data-floating-bar]")) return;
+        // Skip form controls / interactive inputs
+        if (htmlEl.closest("input, textarea, select, option")) return;
+        // Skip explicit opt-out containers
+        if (htmlEl.closest("[data-no-visual-edit='true']")) return;
         // Skip elements that already have their own contentEditable management
         if (htmlEl.dataset.managedEditable) return;
         htmlEl.contentEditable = "true";
@@ -101,6 +105,10 @@ const Layout = ({ children }: { children: ReactNode }) => {
       const target = e.target as HTMLElement;
       // Allow toolbar / edit bar clicks
       if (target.closest("[data-edit-toolbar]") || target.closest("[data-floating-bar]")) return;
+      // Allow interactions with editable targets
+      if (target.closest("[data-editable-injected='true']") || target.closest("[data-managed-editable='true']") || target.closest("[contenteditable='true']")) {
+        return;
+      }
 
       const anchor = target.closest("a");
       const button = target.closest("button");
@@ -123,6 +131,27 @@ const Layout = ({ children }: { children: ReactNode }) => {
     return () => document.removeEventListener("click", handler, true);
   }, [isEditMode]);
 
+  // Defer non-critical widgets so they don't compete with initial paint/LCP.
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const enable = () => {
+      if (!cancelled) setShowDeferredWidgets(true);
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(enable, { timeout: 2500 });
+    } else {
+      timeoutId = setTimeout(enable, 1200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <a
@@ -136,14 +165,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
       <main ref={mainRef} id="main-content" className="flex-1">{children}</main>
       <Footer />
       <MobileBottomNav />
-      <Suspense fallback={null}>
-        <AIChatWidget />
-        <NewsletterPopup />
-        <InstallPrompt />
-        <OrderThankYouPopup />
-        {slug && <FloatingEditBar slug={slug} />}
-      </Suspense>
-      <TrackingScripts />
+      {showDeferredWidgets && (
+        <Suspense fallback={null}>
+          <AIChatWidget />
+          <NewsletterPopup />
+          <OrderThankYouPopup />
+          {slug && <FloatingEditBar slug={slug} />}
+          <TrackingScripts />
+        </Suspense>
+      )}
       <ScrollToTopButton />
     </div>
   );

@@ -52,7 +52,14 @@ serve(async (req) => {
   try {
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      const fallback =
+        'data: {"choices":[{"delta":{"content":"AI chat is temporarily unavailable right now. Please contact support on WhatsApp: https://wa.me/8801302669333 or Telegram: https://t.me/Verifiedbmbuy"}}]}\n\n' +
+        "data: [DONE]\n\n";
+      return new Response(fallback, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
 
     // Fetch products from DB
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

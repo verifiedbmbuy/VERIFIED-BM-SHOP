@@ -4,7 +4,7 @@
  */
 
 import { Helmet } from "react-helmet-async";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSchemaConfig } from "@/hooks/useSchemaConfig";
 import { useBranding } from "@/hooks/useBranding";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,8 @@ import {
 } from "@/lib/jsonLdSchemas";
 import { getSiteUrl } from "@/lib/config";
 import { useLocation } from "react-router-dom";
+
+const CUSTOM_JSON_LD_STALE_TIME = 60 * 60 * 1000;
 
 interface JsonLdSchemaProps {
   pageTitle?: string;
@@ -55,13 +57,17 @@ const JsonLdSchema = ({
   const { branding } = useBranding();
   const location = useLocation();
   const siteUrl = getSiteUrl();
-  const [adminCustomJsonLd, setAdminCustomJsonLd] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.rpc("get_setting", { setting_key: "custom_json_ld" }).then(({ data }) => {
-      if (data) setAdminCustomJsonLd(data);
-    });
-  }, []);
+  const { data: adminCustomJsonLd } = useQuery({
+    queryKey: ["custom-json-ld"],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("get_setting", { setting_key: "custom_json_ld" });
+      return data || null;
+    },
+    staleTime: CUSTOM_JSON_LD_STALE_TIME,
+    gcTime: CUSTOM_JSON_LD_STALE_TIME,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
   if (loading) return null;
 

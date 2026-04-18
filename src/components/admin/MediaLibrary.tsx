@@ -487,7 +487,18 @@ const MediaLibrary = ({ mode = "page", onSelect, uploadPathPrefix = "" }: MediaL
         body: formData,
       });
 
-      if (!uploadResponse.ok) throw new Error("Upload failed");
+      if (!uploadResponse.ok) {
+        let errorMessage = "Upload failed";
+        try {
+          const errorPayload = await uploadResponse.json();
+          if (errorPayload?.error && typeof errorPayload.error === "string") {
+            errorMessage = errorPayload.error;
+          }
+        } catch {
+          // Keep fallback message if response is not JSON.
+        }
+        throw new Error(errorMessage);
+      }
 
       setUploading((prev) => prev.map((u) => (u.id === uploadId ? { ...u, progress: 80 } : u)));
 
@@ -501,7 +512,8 @@ const MediaLibrary = ({ mode = "page", onSelect, uploadPathPrefix = "" }: MediaL
 
       toast.success(`"${plainName}" uploaded successfully.`);
     } catch (err: any) {
-      toast.error(`Failed to upload "${plainName}".`);
+      const reason = typeof err?.message === "string" && err.message ? err.message : "Unknown upload error";
+      toast.error(`Failed to upload "${plainName}": ${reason}`);
       setUploading((prev) => prev.filter((u) => u.id !== uploadId));
     }
   };

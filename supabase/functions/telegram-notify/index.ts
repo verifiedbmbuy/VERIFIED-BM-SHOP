@@ -41,10 +41,12 @@ Deno.serve(async (req) => {
     }
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-
     const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
-    if (!TELEGRAM_CHAT_ID) throw new Error("TELEGRAM_CHAT_ID is not configured");
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+      return new Response(JSON.stringify({ success: false, skipped: true, reason: "telegram_not_configured" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const adminLink = `https://vbbst.lovable.app/admin/messages?session=${session_id}`;
 

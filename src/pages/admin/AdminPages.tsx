@@ -36,6 +36,12 @@ const PAGE_ROUTE_MAP: Record<string, string> = {
   "terms-of-service": "/terms",
 };
 
+const QUICK_EDIT_PAGES = [
+  { label: "Homepage", path: "/?edit=true" },
+  { label: "About Page", path: "/about?edit=true" },
+  { label: "Contact Page", path: "/contact?edit=true" },
+];
+
 const AdminPages = () => {
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +134,12 @@ const AdminPages = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Pages</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Website Content</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Edit page text, hero images, SEO details, and publish changes without touching code.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={bulkAIScan} disabled={bulkScanning} className="gap-1.5">
             {bulkScanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
@@ -140,6 +151,35 @@ const AdminPages = () => {
           <Button onClick={() => navigate("/admin/pages/new")} className="gap-2">
             <Plus className="w-4 h-4" /> New Page
           </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-xl border border-border bg-background p-5">
+          <h3 className="text-base font-semibold text-foreground">How to edit professionally</h3>
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <p><span className="font-medium text-foreground">Admin Edit</span> is best for structured changes like titles, descriptions, hero images, SEO, and page status.</p>
+            <p><span className="font-medium text-foreground">Visual Edit</span> opens the live page so you can click directly on editable text and publish changes from the bottom bar.</p>
+            <p>Use published status when you are ready for visitors to see the update on the website.</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-background p-5">
+          <h3 className="text-base font-semibold text-foreground">Quick Visual Editing</h3>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {QUICK_EDIT_PAGES.map((page) => (
+              <Button
+                key={page.label}
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => navigate(page.path)}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {page.label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -155,7 +195,7 @@ const AdminPages = () => {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Showing {filtered.length} of {pages.length} pages (all statuses)
+        Showing {filtered.length} of {pages.length} pages. Use Admin Edit for full control or Visual Edit for click-to-edit content.
       </p>
 
       <div className="bg-background rounded-xl border border-border">
@@ -174,7 +214,7 @@ const AdminPages = () => {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((page) => (
-              <div key={page.id} className="flex items-center justify-between px-6 py-4">
+              <div key={page.id} className="flex flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground text-sm truncate">{page.title}</span>
@@ -197,30 +237,37 @@ const AdminPages = () => {
                   </div>
                   <span className="text-xs text-muted-foreground">/{page.slug} · Updated {format(new Date(page.updated_at), "MMM d, yyyy")}</span>
                 </div>
-                <div className="flex items-center gap-1 ml-4">
-                  <button
+                <div className="flex flex-wrap items-center gap-2 lg:ml-4 lg:justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => navigate(`/admin/pages/${page.id}/edit`)}
-                    className="p-2 rounded text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
-                    title="Edit in Admin"
+                    className="gap-1.5"
                   >
                     <Edit className="w-4 h-4" />
-                  </button>
-                  <button
+                    Admin Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       const basePath = PAGE_ROUTE_MAP[page.slug] || `/page/${page.slug}`;
                       navigate(`${basePath}?edit=true`);
                     }}
-                    className="p-2 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="Visual Edit"
+                    className="gap-1.5"
                   >
                     <ExternalLink className="w-4 h-4" />
-                  </button>
-                  <button
+                    Visual Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => deletePage(page.id, page.title)}
-                    className="p-2 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="gap-1.5 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))}

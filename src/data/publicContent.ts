@@ -1,20 +1,5 @@
 export const PUBLIC_PRODUCTS = [
   {
-    id: "e3ad3b56-014e-43f4-b1c1-69b2b21efe08",
-    title: "facebook Profile",
-    slug: "facebook-profile",
-    short_description: null,
-    description: "A ready profile option for businesses that need a clean Facebook presence to support account setup and operations.",
-    price: 0,
-    sale_price: null,
-    category: "Facebook Accounts",
-    badge: null,
-    image_url: null,
-    rating: 5,
-    stock_status: "in_stock",
-    sort_order: 0,
-  },
-  {
     id: "ae06e641-d91d-471f-ad21-79d423428ffc",
     title: "Buy Verified Ads Account with Verified BM",
     slug: "verified-ads-account-verified-bm-buy",

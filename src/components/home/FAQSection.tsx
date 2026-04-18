@@ -32,18 +32,16 @@ const FAQSection = () => (
         Everything advertisers ask before buying <strong>verified Business Manager</strong> accounts and <strong>WhatsApp Business API</strong>.
       </p>
 
-      <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0.5">
+      <Accordion type="single" collapsible className="max-w-6xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-2 items-start gap-x-6 gap-y-0.5">
         {faqs.map((faq, i) => (
-          <Accordion key={i} type="single" collapsible>
-            <AccordionItem value={`faq-${i}`} className="bg-card border border-border rounded-lg px-4">
-              <AccordionTrigger className="text-left font-semibold text-foreground py-2 text-sm">
-                <span className="truncate block">{faq.q}</span>
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground text-sm pb-2">{faq.a}</AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          <AccordionItem key={i} value={`faq-${i}`} className="bg-card border border-border rounded-lg px-4">
+            <AccordionTrigger className="text-left font-semibold text-foreground py-2 text-sm">
+              <span className="truncate block">{faq.q}</span>
+            </AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm pb-2">{faq.a}</AccordionContent>
+          </AccordionItem>
         ))}
-      </div>
+      </Accordion>
     </div>
   </section>
 );

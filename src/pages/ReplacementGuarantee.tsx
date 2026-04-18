@@ -93,11 +93,11 @@ const sections: PolicySection[] = [
           <li>Email: info@verifiedbm.shop</li>
         </ul>
         <div className="flex flex-wrap gap-3 mt-4 not-prose">
-          <a href="https://wa.me/8801302669333" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(142,70%,45%)] text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-            <MessageCircle className="w-4 h-4" /> Chat on WhatsApp
+          <a href="https://wa.me/8801302669333" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(142,70%,45%)] !text-white text-sm font-medium no-underline hover:opacity-90 transition-opacity">
+            <MessageCircle className="w-4 h-4 text-white" /> <span className="text-white">Chat on WhatsApp</span>
           </a>
-          <a href="https://t.me/Verifiedbmbuy" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(200,100%,40%)] text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-            <Send className="w-4 h-4" /> Message on Telegram
+          <a href="https://t.me/Verifiedbmbuy" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(200,100%,40%)] !text-white text-sm font-medium no-underline hover:opacity-90 transition-opacity">
+            <Send className="w-4 h-4 text-white" /> <span className="text-white">Message on Telegram</span>
           </a>
         </div>
       </>

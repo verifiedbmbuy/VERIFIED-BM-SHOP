@@ -38,6 +38,15 @@ const ProductCard = forwardRef<HTMLDivElement, { product: Product }>(({ product 
     <div
       ref={ref}
       onClick={() => navigate(`/product/${product.slug}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigate(`/product/${product.slug}`);
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      aria-label={`View details for ${product.title}`}
       className="group bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 relative flex flex-col h-full cursor-pointer"
     >
       {!inStock && (
@@ -132,6 +141,7 @@ const ProductCard = forwardRef<HTMLDivElement, { product: Product }>(({ product 
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Ask about ${product.title} on WhatsApp`}
               className="flex items-center justify-center gap-1.5 flex-1 py-2.5 rounded-lg bg-[hsl(142,70%,45%)] text-white text-sm font-semibold hover:bg-[hsl(142,70%,40%)] transition-colors"
             >
               <MessageCircle className="w-4 h-4" /> WA
@@ -141,6 +151,7 @@ const ProductCard = forwardRef<HTMLDivElement, { product: Product }>(({ product 
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Ask about ${product.title} on Telegram`}
               className="flex items-center justify-center gap-1.5 flex-1 py-2.5 rounded-lg bg-[hsl(200,100%,40%)] text-white text-sm font-semibold hover:bg-[hsl(200,100%,35%)] transition-colors"
             >
               <Send className="w-4 h-4" /> TG

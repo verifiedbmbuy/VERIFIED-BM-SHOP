@@ -54,7 +54,16 @@ export const uploadLocalMedia = async ({
   });
 
   if (!response.ok) {
-    throw new Error("Failed to upload local media file.");
+    let message = "Failed to upload local media file.";
+    try {
+      const payload = await response.json();
+      if (payload?.error && typeof payload.error === "string") {
+        message = payload.error;
+      }
+    } catch {
+      // Keep fallback message if response is not JSON.
+    }
+    throw new Error(message);
   }
 
   const payload = await response.json();

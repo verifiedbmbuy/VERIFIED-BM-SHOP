@@ -94,6 +94,13 @@ const StatsCards = () => {
   const [commentsHistory, setCommentsHistory] = useState<number[]>([]);
   const [perfScore, setPerfScore] = useState(0);
 
+  const performanceStatus =
+    perfScore >= 80
+      ? { label: "Strong", className: "text-green-600" }
+      : perfScore >= 50
+        ? { label: "Improving", className: "text-yellow-600" }
+        : { label: "Needs Attention", className: "text-red-500" };
+
   useEffect(() => {
     const load = async () => {
       const [ordersRes, profilesRes, commentsRes] = await Promise.all([
@@ -200,15 +207,16 @@ const StatsCards = () => {
       ))}
 
       {/* Performance Score Gauge Card */}
-      <div className="bg-white rounded-lg border border-[#dcdcde] p-5 flex flex-col items-center justify-center">
+      <div
+        className="bg-white rounded-lg border border-[#dcdcde] p-5 flex flex-col items-center justify-center"
+        title="Site Performance Score"
+        aria-label="Site Performance Score"
+      >
         <PerformanceGauge score={perfScore} loading={loading} />
-        <span className="text-xs font-medium text-gray-500 mt-2">Performance Score</span>
+        <span className="text-xs font-medium text-gray-500 mt-2">Site Performance Score</span>
         {!loading && (
-          <span className={cn(
-            "text-[10px] font-semibold mt-0.5",
-            perfScore >= 80 ? "text-green-600" : perfScore >= 50 ? "text-yellow-600" : "text-red-500"
-          )}>
-            {perfScore >= 80 ? "Excellent" : perfScore >= 50 ? "Needs Improvement" : "Critical"}
+          <span className={cn("text-[10px] font-semibold mt-0.5", performanceStatus.className)}>
+            {performanceStatus.label}
           </span>
         )}
       </div>

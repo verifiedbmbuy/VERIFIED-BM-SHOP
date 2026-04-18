@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+const PAGE_SEO_STALE_TIME = 15 * 60 * 1000;
+
 export interface PageSEO {
   title: string | null;
   meta_title: string | null;
@@ -34,8 +36,10 @@ export const usePageSEO = (slug: string) => {
       } as PageSEO;
     },
     enabled: !!slug,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: PAGE_SEO_STALE_TIME,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   return { pageSEO: data ?? null, loading: isLoading };
