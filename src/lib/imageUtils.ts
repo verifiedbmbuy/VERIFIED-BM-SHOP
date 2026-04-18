@@ -37,28 +37,50 @@ export const toBrandedUrl = (url: string): string => {
   if (!url) return url;
   if (url.startsWith("blob:") || url.startsWith("data:")) return url;
 
-  const cleanUrl = url.split("?")[0];
-  if (cleanUrl.startsWith(ADMIN_MEDIA_PREFIX)) return cleanUrl;
+  const qIndex = url.indexOf("?");
+  const cleanUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
+  const query = qIndex >= 0 ? url.slice(qIndex) : "";
+
+  // Keep local public images untouched so static assets from /public/images work in dev and production.
+  if (cleanUrl.startsWith("/images/")) return `${cleanUrl}${query}`;
+
+  if (cleanUrl.startsWith(ADMIN_MEDIA_PREFIX)) return `${cleanUrl}${query}`;
   if (cleanUrl.startsWith(SITE_URL)) {
     const relative = cleanUrl.substring(SITE_URL.length);
-    return getAdminMediaUrl(relative);
+    if (relative.startsWith("/images/")) return `${cleanUrl}${query}`;
+    return `${getAdminMediaUrl(relative)}${query}`;
   }
   if (cleanUrl.startsWith(SUPABASE_STORAGE_BASE)) {
     const relative = cleanUrl.substring(SUPABASE_STORAGE_BASE.length);
-    return getAdminMediaUrl(relative);
+    return `${getAdminMediaUrl(relative)}${query}`;
   }
   if (cleanUrl.startsWith(SUPABASE_BRANDING_BASE)) {
     const relative = cleanUrl.substring(SUPABASE_BRANDING_BASE.length);
-    return getAdminMediaUrl(`branding/${relative}`);
+    return `${getAdminMediaUrl(`branding/${relative}`)}${query}`;
   }
   if (cleanUrl.startsWith("/")) {
-    return getAdminMediaUrl(cleanUrl);
+    return `${getAdminMediaUrl(cleanUrl)}${query}`;
   }
   if (!cleanUrl.startsWith("http")) {
-    return getAdminMediaUrl(cleanUrl);
+    return `${getAdminMediaUrl(cleanUrl)}${query}`;
   }
 
-  return cleanUrl;
+  // Normalize legacy absolute URLs (e.g. localhost) that still point to media endpoints.
+  try {
+    const parsed = new URL(cleanUrl);
+    const path = parsed.pathname || "";
+    if (
+      path.startsWith("/admin/media/") ||
+      path.startsWith("/media/") ||
+      path.startsWith("/storage/v1/object/public/")
+    ) {
+      return `${getAdminMediaUrl(path)}${query}`;
+    }
+  } catch {
+    // Ignore malformed absolute URLs and return as-is below.
+  }
+
+  return `${cleanUrl}${query}`;
 };
 
 /**
