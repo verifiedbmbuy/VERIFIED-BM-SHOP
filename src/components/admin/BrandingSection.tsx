@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase, isLocalProtectedMode } from "@/integrations/supabase/client";
 import { convertToWebP, getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
+import { uploadLocalMedia } from "@/lib/localMedia";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, X, Image as ImageIcon, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,51 @@ const BRANDING_FIELDS = [
 
 const DEV_BRANDING_OVERRIDES_KEY = "dev_branding_overrides";
 const DEV_OVERRIDE_DELETED = "__deleted__";
+const MAX_LOCAL_DATA_URL_LENGTH = 350_000;
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read file."));
+    reader.readAsDataURL(blob);
+  });
+
+const isDataUrl = (value: string): boolean => value.startsWith("data:");
+
+const normalizeBrandingUrl = (value: string): string => {
+  if (!value) return "";
+  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
+
+  const supabaseBrandingMatch = value.match(/\/storage\/v1\/object\/public\/branding\/([^?]+)/i);
+  if (supabaseBrandingMatch?.[1]) {
+    return `/images/logos/${supabaseBrandingMatch[1].split("/").filter(Boolean).pop() || supabaseBrandingMatch[1]}`;
+  }
+
+  const localHostPattern = /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i;
+  if (localHostPattern.test(value)) {
+    const mediaMatch = value.match(/\/admin\/media\/branding\/([^?]+)/i);
+    if (mediaMatch?.[1]) {
+      return `/images/logos/${mediaMatch[1].split("/").filter(Boolean).pop() || mediaMatch[1]}`;
+    }
+
+    const fileMatch = value.match(/branding\/([^?]+)/i);
+    if (fileMatch?.[1]) {
+      return `/images/logos/${fileMatch[1].split("/").filter(Boolean).pop() || fileMatch[1]}`;
+    }
+  }
+
+  if (value.startsWith("/images/")) {
+    return value;
+  }
+
+  if (!value.startsWith("http")) {
+    const clean = value.replace(/^\/+/, "").replace(/^branding\//, "");
+    return `/images/logos/${clean.split("/").filter(Boolean).pop() || clean}`;
+  }
+
+  return value;
+};
 
 const BrandingSection = () => {
   const [logos, setLogos] = useState<Record<string, string>>({});
@@ -36,7 +82,7 @@ const BrandingSection = () => {
         .in("key", BRANDING_FIELDS.map((f) => f.key));
       if (data) {
         const map: Record<string, string> = {};
-        data.forEach((r) => { map[r.key] = r.value; });
+        data.forEach((r) => { map[r.key] = normalizeBrandingUrl(r.value); });
         if (typeof window !== "undefined" && isLocalProtectedMode) {
           try {
             const raw = window.localStorage.getItem(DEV_BRANDING_OVERRIDES_KEY);
@@ -46,7 +92,7 @@ const BrandingSection = () => {
                 if (v === DEV_OVERRIDE_DELETED) {
                   delete map[k];
                 } else {
-                  map[k] = v;
+                  map[k] = normalizeBrandingUrl(v);
                 }
               });
             }
@@ -76,23 +122,22 @@ const BrandingSection = () => {
         // Keep an explicit tombstone so refresh does not revive DB value.
         overrides[key] = DEV_OVERRIDE_DELETED;
       }
-      window.localStorage.setItem(DEV_BRANDING_OVERRIDES_KEY, JSON.stringify(overrides));
+      try {
+        window.localStorage.setItem(DEV_BRANDING_OVERRIDES_KEY, JSON.stringify(overrides));
+      } catch {
+        throw new Error("Local protected branding storage is full. Use a smaller image or clear browser site data.");
+      }
       return;
     }
 
     const { error } = await supabase.from("site_settings").upsert(
-      { key, value, updated_at: new Date().toISOString() },
+      { key, value: normalizeBrandingUrl(value), updated_at: new Date().toISOString() },
       { onConflict: "key" }
     );
     if (error) throw error;
   };
 
   const handleUpload = async (key: string, file: File) => {
-    if (isLocalProtectedMode) {
-      toast.error("Upload is disabled in local protected mode. Select an existing image from Media Library, or set VITE_ALLOW_PROD_DATA_IN_DEV=true to enable writes intentionally.");
-      return;
-    }
-
     const maxSize = key === "favicon" ? 500 * 1024 : 2 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error(`File too large. Max ${key === "favicon" ? "500KB" : "2MB"}.`);
@@ -112,22 +157,32 @@ const BrandingSection = () => {
         processedFile = await compressImage(processedFile, key === "favicon" ? 128 : 800);
       }
 
-      const isWebP = processedFile instanceof File && processedFile.type === "image/webp";
-      const ext = isWebP ? "webp" : (file.name.split(".").pop()?.toLowerCase() || "png");
-      const path = `${key}.${ext}`;
+      if (isLocalProtectedMode) {
+        const localDataUrl = await blobToDataUrl(processedFile);
+        if (localDataUrl.length > MAX_LOCAL_DATA_URL_LENGTH) {
+          throw new Error("Local protected upload is too large for browser storage. Use a smaller image or select from Media Library.");
+        }
+        setLogos((p) => ({ ...p, [key]: localDataUrl }));
+        await persistBrandingField(key, localDataUrl);
+        queryClient.invalidateQueries({ queryKey: ["branding"] });
+        toast.success("Logo uploaded and saved locally (protected mode).");
+        return;
+      }
 
-      // Delete old file if exists
-      await supabase.storage.from("branding").remove([path]);
+      const uploadFile = processedFile instanceof File
+        ? processedFile
+        : new File([processedFile], file.name, { type: file.type || "application/octet-stream" });
 
-      const { error: upErr } = await supabase.storage.from("branding").upload(path, processedFile, {
-        upsert: true,
-        contentType: isWebP ? "image/webp" : file.type,
+      const uploaded = await uploadLocalMedia({
+        file: uploadFile,
+        pathPrefix: "logos",
+        slug: `${key}-${Date.now()}-${file.name}`,
+        fileName: key.replace(/_/g, " "),
+        altText: key.replace(/_/g, " "),
       });
-      if (upErr) throw upErr;
 
-      const { data: urlData } = supabase.storage.from("branding").getPublicUrl(path);
       // Add cache-busting param
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      const publicUrl = `${normalizeBrandingUrl(uploaded.url)}?t=${Date.now()}`;
       setLogos((p) => ({ ...p, [key]: publicUrl }));
       await persistBrandingField(key, publicUrl);
       queryClient.invalidateQueries({ queryKey: ["branding"] });
@@ -169,7 +224,7 @@ const BrandingSection = () => {
     const canonicalUrl = file.file_path
       ? getAdminMediaUrl(file.file_path)
       : toBrandedUrl(file.url);
-    const url = `${canonicalUrl}?t=${Date.now()}`;
+    const url = `${normalizeBrandingUrl(canonicalUrl)}?t=${Date.now()}`;
     setLogos((p) => ({ ...p, [key]: url }));
 
     try {
@@ -226,7 +281,9 @@ const BrandingSection = () => {
                   />
                 </div>
                 <div className="space-y-2 flex-1">
-                  <p className="text-xs text-muted-foreground break-all line-clamp-2">{toBrandedUrl(logos[field.key])}</p>
+                  <p className="text-xs text-muted-foreground break-all line-clamp-2">
+                    {isDataUrl(logos[field.key]) ? `local://branding/${field.key}` : toBrandedUrl(logos[field.key])}
+                  </p>
                   <div className="flex gap-2">
                     <label className="cursor-pointer">
                       <Button variant="outline" size="sm" className="gap-1 pointer-events-none">

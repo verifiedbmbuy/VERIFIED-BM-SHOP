@@ -11,9 +11,10 @@ interface MediaLibraryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (file: MediaFile) => void;
+  uploadPathPrefix?: string;
 }
 
-const MediaLibraryModal = ({ open, onOpenChange, onSelect }: MediaLibraryModalProps) => {
+const MediaLibraryModal = ({ open, onOpenChange, onSelect, uploadPathPrefix }: MediaLibraryModalProps) => {
   const handleSelect = (file: MediaFile) => {
     onSelect(file);
     onOpenChange(false);
@@ -26,7 +27,7 @@ const MediaLibraryModal = ({ open, onOpenChange, onSelect }: MediaLibraryModalPr
           <DialogTitle>Media Library</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto">
-          <MediaLibrary mode="modal" onSelect={handleSelect} />
+          <MediaLibrary mode="modal" onSelect={handleSelect} uploadPathPrefix={uploadPathPrefix} />
         </div>
       </DialogContent>
     </Dialog>

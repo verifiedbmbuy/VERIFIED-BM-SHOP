@@ -12,23 +12,32 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # RewriteCond %{HTTP_HOST} !^www\. [NC]
 # RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
 
-# ── Sitemap — proxy to dynamic Edge Function ──
-RewriteRule ^sitemap\.xml$ https://xukkejkvcgixogvbllmf.supabase.co/functions/v1/sitemap [L,R=302]
+# ── Sitemap — serve static file generated at build ──
+# (No external redirect; keeps sitemap URL stable for Search Console)
 
 # ── Robots.txt — serve static file directly ──
 
 # ── Branded Media URLs with Slug Mapping ──
 RewriteRule ^admin/media/(.+)$ media-proxy.php?file=$1 [L,QSA]
-# Resolve branded /media/ slugs via Edge Function (302 → Supabase storage)
-RewriteRule ^media/(.+)$ https://xukkejkvcgixogvbllmf.supabase.co/functions/v1/media-resolve?slug=$1 [L,R=302]
-
-# Resolve branded /branding/ assets directly to Supabase storage bucket
-RewriteRule ^branding/(.+)$ https://xukkejkvcgixogvbllmf.supabase.co/storage/v1/object/public/branding/$1 [L,R=302]
+RewriteRule ^media/(.+)$ media-proxy.php?file=$1 [L,QSA]
+RewriteRule ^branding/(.+)$ media-proxy.php?file=logos/$1 [L,QSA]
 
 # ── SPA Pretty Permalinks ────────────────────
+# Normalize trailing slash URLs to a single canonical path (except root)
+RewriteCond %{REQUEST_URI} .+/$
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+# Canonicalize legacy dynamic route to root slug URL
+RewriteRule ^page/([^/]+)$ /$1 [R=301,L]
+
+# Avoid soft-404 style product index URL; keep products under /product/:slug
+RewriteRule ^product$ /shop [R=301,L]
+
 # Exclude static files from SPA catch-all (sitemap, robots, llms)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/sitemap\.xml$ [NC]
 RewriteCond %{REQUEST_URI} !^/robots\.txt$ [NC]
 RewriteCond %{REQUEST_URI} !^/llms\.txt$ [NC]
 RewriteRule ^ index.html [QSA,L]

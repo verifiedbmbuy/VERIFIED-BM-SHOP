@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadLocalMedia } from "@/lib/localMedia";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -40,12 +41,14 @@ const PageHeroTab = () => {
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `page-hero-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
-      setHeroImage(urlData.publicUrl);
+      const uploaded = await uploadLocalMedia({
+        file,
+        pathPrefix: "page-hero",
+        slug: `page-hero-${Date.now()}-${file.name}`,
+        fileName: `page hero ${Date.now()}`,
+        altText: "page hero image",
+      });
+      setHeroImage(uploaded.url);
       toast.success("Image uploaded! Click Save to apply.");
     } catch {
       toast.error("Failed to upload image.");

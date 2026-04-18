@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadLocalMedia } from "@/lib/localMedia";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/layout/Layout";
 import SEOHead from "@/components/seo/SEOHead";
@@ -274,15 +275,17 @@ const Checkout = () => {
     if (!proofFile || !orderId) return;
     setUploading(true);
     try {
-      const ext = proofFile.name.split(".").pop();
-      const path = `${orderId}/proof.${ext}`;
-      const { error: upErr } = await supabase.storage.from("payment-proofs").upload(path, proofFile, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from("payment-proofs").getPublicUrl(path);
+      const uploaded = await uploadLocalMedia({
+        file: proofFile,
+        pathPrefix: `payment-proofs/${orderId}`,
+        slug: `proof-${Date.now()}-${proofFile.name}`,
+        fileName: `payment proof ${orderId}`,
+        altText: `payment proof ${orderId}`,
+      });
       const { error: updateErr } = await supabase
         .from("orders")
         .update({
-          proof_image_url: urlData.publicUrl,
+          proof_image_url: uploaded.url,
           proof_uploaded_at: new Date().toISOString(),
           status: "processing",
         })
@@ -303,7 +306,7 @@ const Checkout = () => {
 
   return (
     <Layout>
-      <SEOHead title="Checkout - Verified BM Shop" description="Complete your purchase" />
+      <SEOHead title="Checkout - Verified BM Shop" description="Complete your purchase" noIndex />
 
       {/* Duplicate Order Confirmation Dialog */}
       <AlertDialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>

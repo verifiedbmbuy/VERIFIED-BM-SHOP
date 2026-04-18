@@ -9,20 +9,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    proxy: {
-      "/admin/media/branding": {
-        target: "https://xukkejkvcgixogvbllmf.supabase.co",
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/admin\/media\/branding/, "/storage/v1/object/public/branding"),
-      },
-      "/admin/media": {
-        target: "https://xukkejkvcgixogvbllmf.supabase.co",
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/admin\/media/, "/storage/v1/object/public/media"),
-      },
-    },
     hmr: {
       overlay: false,
     },
@@ -117,13 +103,36 @@ export default defineConfig(({ mode }) => ({
         : undefined,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-tabs", "@radix-ui/react-tooltip"],
-          query: ["@tanstack/react-query"],
-          motion: ["framer-motion"],
-          charts: ["recharts"],
-          pdf: ["jspdf", "jspdf-autotable"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (id.includes("@supabase")) {
+            return "supabase";
+          }
+
+          if (id.includes("@tanstack")) {
+            return "tanstack";
+          }
+
+          if (id.includes("@radix-ui")) {
+            return "radix";
+          }
+
+          if (id.includes("framer-motion")) {
+            return "motion";
+          }
+
+          if (id.includes("recharts") || id.includes("victory-vendor") || id.includes("d3-")) {
+            return "charts";
+          }
+
+          if (id.includes("jspdf") || id.includes("html2canvas")) {
+            return "pdf";
+          }
+
+          if (id.includes("react-markdown") || id.includes("remark-") || id.includes("rehype-") || id.includes("micromark")) {
+            return "markdown";
+          }
         },
       },
     },

@@ -1,9 +1,6 @@
 <?php
 /**
- * PHP Proxy for Branded Media URLs with Slug Mapping
- *
- * Resolves SEO-friendly URL slugs to actual Supabase storage files
- * by querying the media_files table for the url_slug → file_name mapping.
+ * Local media proxy for branded URLs.
  *
  * Usage in .htaccess:
  *   RewriteRule ^media/(.+)$ /media-proxy.php?file=$1 [L,QSA]
@@ -16,64 +13,60 @@ if (empty($file) || preg_match('/\.\./', $file)) {
     exit('Bad request');
 }
 
-$bucket = 'media';
-if (isset($_GET['bucket']) && $_GET['bucket'] === 'branding') {
-    $bucket = 'branding';
-}
-
-$normalizeBucketPath = function ($path) use (&$bucket) {
+$normalizeBucketPath = function ($path) {
     $clean = ltrim($path, '/');
     if (strpos($clean, 'media/') === 0) {
-        $bucket = 'media';
         $clean = substr($clean, 6);
     } elseif (strpos($clean, 'branding/') === 0) {
-        $bucket = 'branding';
-        $clean = substr($clean, 9);
+        $clean = 'logos/' . substr($clean, 9);
     }
     return $clean;
 };
 
-// Use the full requested file (including extension) as the slug for lookup
-$slug = $file;
+$serveLocalPublicImage = function ($path) {
+    $clean = ltrim($path, '/');
+    $candidates = [$clean];
 
-// --- Slug-to-file mapping via Supabase REST API ---
-$supabaseUrl = 'https://xukkejkvcgixogvbllmf.supabase.co';
-$anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1a2tlamt2Y2dpeG9ndmJsbG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjE5OTUsImV4cCI6MjA4NjY5Nzk5NX0.OAYDM8SFgKAXSN1WMlHkJIwMSA4xwgvH3m05TwUJky0';
 
-$resolvedFile = $file; // default: use the requested path as-is
+    $resolveFromIndex = function ($slug) {
+        $indexPath = __DIR__ . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . '.media-index.json';
+        if (!is_file($indexPath)) {
+            return null;
+        }
 
-// Try to resolve slug → actual file_name
-$apiUrl = $supabaseUrl . '/rest/v1/media_files?url_slug=eq.' . urlencode($slug) . '&select=file_path&limit=1';
-$ch = curl_init($apiUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'apikey: ' . $anonKey,
-    'Authorization: Bearer ' . $anonKey,
-    'Accept: application/json',
-]);
-curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-$apiResponse = curl_exec($ch);
-$apiCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+        $raw = file_get_contents($indexPath);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
 
-if ($apiCode === 200 && $apiResponse) {
-    $rows = json_decode($apiResponse, true);
-    if (!empty($rows) && isset($rows[0]['file_path'])) {
-        $resolvedFile = $rows[0]['file_path'];
+        $records = json_decode($raw, true);
+        if (!is_array($records)) {
+            return null;
+        }
+
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+
+            $urlSlug = isset($record['url_slug']) ? ltrim((string)$record['url_slug'], '/') : '';
+            $filePath = isset($record['file_path']) ? ltrim((string)$record['file_path'], '/') : '';
+
+            if ($urlSlug !== '' && $urlSlug === ltrim($slug, '/')) {
+                return $filePath;
+            }
+        }
+
+        return null;
+    };
+
+    $resolvedFromIndex = $resolveFromIndex($localCandidate);
+    if ($resolvedFromIndex) {
+        $serveLocalPublicImage($resolvedFromIndex);
     }
-}
 
-$resolvedFile = $normalizeBucketPath($resolvedFile);
-
-$fetchFromStorage = function ($targetBucket, $targetFile) use ($supabaseUrl) {
-    $storageUrl = $supabaseUrl . '/storage/v1/object/public/' . $targetBucket . '/' . $targetFile;
-
-    $ch = curl_init($storageUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_HEADER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-
+    http_response_code(404);
+    exit('File not found');
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);

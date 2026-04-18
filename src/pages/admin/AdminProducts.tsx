@@ -95,6 +95,23 @@ interface Product {
 const generateSlug = (title: string) =>
   title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
+const toLocalProductsImagePath = (file: { file_path?: string | null; url_slug?: string | null; url?: string | null }): string => {
+  const directName = (file.file_path || file.url_slug || "").split("/").filter(Boolean).pop();
+  if (directName) return `/images/products/${directName}`;
+
+  if (file.url) {
+    try {
+      const parsed = new URL(file.url);
+      const nameFromUrl = parsed.pathname.split("/").filter(Boolean).pop();
+      if (nameFromUrl) return `/images/products/${nameFromUrl}`;
+    } catch {
+      // Fall back to branded URL conversion below.
+    }
+  }
+
+  return file.url ? toBrandedUrl(file.url) : "";
+};
+
 const emptyProduct = (): Partial<Product> => ({
   title: "", slug: "", sku: "", description: "", short_description: "", price: 0,
   sale_price: null, category: "Verified BM", badge: null, image_url: "",
@@ -794,10 +811,10 @@ const AdminProducts = () => {
                   <Input
                     value={editProduct.image_url || ""}
                     onChange={(e) => setEditProduct({ ...editProduct, image_url: e.target.value })}
-                    placeholder="https://verifiedbm.shop/admin/media/products/image.webp"
+                    placeholder="/images/products/your-product-image.jpg"
                     className="mt-1 font-mono text-xs"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Paste any URL or pick from Media Library above. URL is saved as /admin/media/...</p>
+                  <p className="text-xs text-muted-foreground mt-1">Paste a local image path like /images/products/... or pick from Media Library. Product URLs are saved in /images/products/ format.</p>
                 </div>
               </div>
               <div>
@@ -823,7 +840,7 @@ const AdminProducts = () => {
                   <div className="flex gap-2 mt-1">
                     <Input
                       id="gallery-url-input"
-                      placeholder="https://verifiedbm.shop/admin/media/products/gallery-image.webp"
+                      placeholder="/images/products/your-gallery-image.jpg"
                       className="flex-1 font-mono text-xs"
                     />
                     <Button variant="outline" size="sm" onClick={() => {
@@ -1015,10 +1032,11 @@ const AdminProducts = () => {
         onOpenChange={setMediaOpen}
         uploadPathPrefix="products"
         onSelect={(file) => {
+          const localPath = toLocalProductsImagePath(file as any);
           if (mediaTarget === "main") {
-            setEditProduct({ ...editProduct, image_url: toBrandedUrl(file.url) });
+            setEditProduct({ ...editProduct, image_url: localPath });
           } else {
-            setEditProduct({ ...editProduct, gallery_images: [...(editProduct.gallery_images || []), toBrandedUrl(file.url)] });
+            setEditProduct({ ...editProduct, gallery_images: [...(editProduct.gallery_images || []), localPath] });
           }
         }}
       />

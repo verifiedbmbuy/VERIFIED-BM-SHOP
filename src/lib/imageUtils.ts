@@ -1,5 +1,3 @@
-const SUPABASE_STORAGE_BASE = "https://xukkejkvcgixogvbllmf.supabase.co/storage/v1/object/public/media/";
-const SUPABASE_BRANDING_BASE = "https://xukkejkvcgixogvbllmf.supabase.co/storage/v1/object/public/branding/";
 const PRODUCTION_SITE_URL = (import.meta.env.VITE_SITE_URL || "https://verifiedbm.shop").replace(/\/+$/, "");
 
 const resolveSiteUrl = (): string => {
@@ -12,14 +10,16 @@ const resolveSiteUrl = (): string => {
 };
 
 const SITE_URL = resolveSiteUrl();
-const ADMIN_MEDIA_PREFIX = `${SITE_URL}/admin/media/`;
+const LOCAL_IMAGES_PREFIX = `${SITE_URL}/images/`;
 
 const normalizePath = (path: string) => path.replace(/^(\.\/|\/+)+/, "");
 
 const stripKnownPrefixes = (path: string): string => {
   let clean = normalizePath(path);
   clean = clean.replace(/^admin\/media\//, "");
+  clean = clean.replace(/^images\//, "");
   clean = clean.replace(/^storage\/v1\/object\/public\//, "");
+  clean = clean.replace(/^branding\//, "logos/");
   clean = clean.replace(/^media\//, "");
   return clean;
 };
@@ -27,7 +27,7 @@ const stripKnownPrefixes = (path: string): string => {
 export const getAdminMediaUrl = (path: string): string => {
   if (!path) return path;
   const clean = stripKnownPrefixes(path.split("?")[0]);
-  return `${ADMIN_MEDIA_PREFIX}${clean}`;
+  return `${LOCAL_IMAGES_PREFIX}${clean}`;
 };
 
 /**
@@ -44,20 +44,23 @@ export const toBrandedUrl = (url: string): string => {
   // Keep local public images untouched so static assets from /public/images work in dev and production.
   if (cleanUrl.startsWith("/images/")) return `${cleanUrl}${query}`;
 
-  if (cleanUrl.startsWith(ADMIN_MEDIA_PREFIX)) return `${cleanUrl}${query}`;
+  if (cleanUrl.startsWith(LOCAL_IMAGES_PREFIX)) return `${cleanUrl}${query}`;
   if (cleanUrl.startsWith(SITE_URL)) {
     const relative = cleanUrl.substring(SITE_URL.length);
     if (relative.startsWith("/images/")) return `${cleanUrl}${query}`;
     return `${getAdminMediaUrl(relative)}${query}`;
   }
-  if (cleanUrl.startsWith(SUPABASE_STORAGE_BASE)) {
-    const relative = cleanUrl.substring(SUPABASE_STORAGE_BASE.length);
+
+  if (cleanUrl.includes("/storage/v1/object/public/media/")) {
+    const relative = cleanUrl.split("/storage/v1/object/public/media/")[1] || "";
     return `${getAdminMediaUrl(relative)}${query}`;
   }
-  if (cleanUrl.startsWith(SUPABASE_BRANDING_BASE)) {
-    const relative = cleanUrl.substring(SUPABASE_BRANDING_BASE.length);
-    return `${getAdminMediaUrl(`branding/${relative}`)}${query}`;
+
+  if (cleanUrl.includes("/storage/v1/object/public/branding/")) {
+    const relative = cleanUrl.split("/storage/v1/object/public/branding/")[1] || "";
+    return `${getAdminMediaUrl(`logos/${relative}`)}${query}`;
   }
+
   if (cleanUrl.startsWith("/")) {
     return `${getAdminMediaUrl(cleanUrl)}${query}`;
   }
@@ -71,7 +74,9 @@ export const toBrandedUrl = (url: string): string => {
     const path = parsed.pathname || "";
     if (
       path.startsWith("/admin/media/") ||
+      path.startsWith("/images/") ||
       path.startsWith("/media/") ||
+      path.startsWith("/branding/") ||
       path.startsWith("/storage/v1/object/public/")
     ) {
       return `${getAdminMediaUrl(path)}${query}`;

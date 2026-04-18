@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toBrandedUrl } from "@/lib/imageUtils";
+import { uploadLocalMedia } from "@/lib/localMedia";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -419,9 +420,14 @@ const AdminPageEditor = () => {
           <Button variant="ghost" size="sm" onClick={() => navigate("/admin/pages")}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Back
           </Button>
-          <h2 className="text-xl font-bold text-foreground">
-            {pageData.id ? `Edit: ${pageData.title || "Untitled"}` : "New Page"}
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">
+              {pageData.id ? `Edit: ${pageData.title || "Untitled"}` : "New Page"}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Update text, images, and SEO here. Use clear headings and short descriptions for a more professional page.
+            </p>
+          </div>
           {lastSaved && (
             <span className="text-xs text-muted-foreground">
               Auto-saved {lastSaved.toLocaleTimeString()}
@@ -442,8 +448,26 @@ const AdminPageEditor = () => {
           </Select>
           <Button onClick={handleSave} disabled={saving} className="gap-1.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save
+            Save Page
           </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-background p-5">
+        <h3 className="text-sm font-semibold text-foreground">Editing guide</h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-3 text-sm">
+          <div className="rounded-lg bg-muted/40 p-3">
+            <p className="font-medium text-foreground">Content Fields</p>
+            <p className="text-muted-foreground mt-1">Use this for page text, headings, button labels, and descriptions.</p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-3">
+            <p className="font-medium text-foreground">Hero Image</p>
+            <p className="text-muted-foreground mt-1">Upload a professional banner image and adjust the dark overlay for readable text.</p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-3">
+            <p className="font-medium text-foreground">SEO</p>
+            <p className="text-muted-foreground mt-1">Set the page title and description that appear in Google and social sharing previews.</p>
+          </div>
         </div>
       </div>
 
@@ -477,8 +501,8 @@ const AdminPageEditor = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="content">Content Fields</TabsTrigger>
-              <TabsTrigger value="hero">Hero Image</TabsTrigger>
+              <TabsTrigger value="content">Text & Sections</TabsTrigger>
+              <TabsTrigger value="hero">Hero Banner</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
               <TabsTrigger value="components">Components</TabsTrigger>
             </TabsList>
@@ -541,12 +565,14 @@ const AdminPageEditor = () => {
                           if (file.size > 10 * 1024 * 1024) { toast.error("File must be under 10MB."); return; }
                           setHeroUploading(true);
                           try {
-                            const ext = file.name.split(".").pop();
-                            const path = `page-hero-${pageData.slug || "page"}-${Date.now()}.${ext}`;
-                            const { error } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-                            if (error) throw error;
-                            const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
-                            setPageData(p => ({ ...p, hero_image: urlData.publicUrl }));
+                            const uploaded = await uploadLocalMedia({
+                              file,
+                              pathPrefix: "page-hero",
+                              slug: `page-hero-${pageData.slug || "page"}-${Date.now()}-${file.name}`,
+                              fileName: `page hero ${pageData.slug || "page"}`,
+                              altText: `${pageData.title || "page"} hero image`,
+                            });
+                            setPageData(p => ({ ...p, hero_image: uploaded.url }));
                             toast.success("Image uploaded! Click Save to apply.");
                           } catch { toast.error("Failed to upload image."); }
                           finally { setHeroUploading(false); }
@@ -574,12 +600,14 @@ const AdminPageEditor = () => {
                       if (file.size > 10 * 1024 * 1024) { toast.error("File must be under 10MB."); return; }
                       setHeroUploading(true);
                       try {
-                        const ext = file.name.split(".").pop();
-                        const path = `page-hero-${pageData.slug || "page"}-${Date.now()}.${ext}`;
-                        const { error } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-                        if (error) throw error;
-                        const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
-                        setPageData(p => ({ ...p, hero_image: urlData.publicUrl }));
+                        const uploaded = await uploadLocalMedia({
+                          file,
+                          pathPrefix: "page-hero",
+                          slug: `page-hero-${pageData.slug || "page"}-${Date.now()}-${file.name}`,
+                          fileName: `page hero ${pageData.slug || "page"}`,
+                          altText: `${pageData.title || "page"} hero image`,
+                        });
+                        setPageData(p => ({ ...p, hero_image: uploaded.url }));
                         toast.success("Image uploaded! Click Save to apply.");
                       } catch { toast.error("Failed to upload image."); }
                       finally { setHeroUploading(false); }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { convertToWebP, toBrandedUrl } from "@/lib/imageUtils";
+import { convertToWebP } from "@/lib/imageUtils";
 import {
   Upload,
   Search,
@@ -34,6 +34,7 @@ import { toast } from "sonner";
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const BRANDED_DOMAIN = "https://verifiedbm.shop";
+const LOCAL_MEDIA_API = "/media-local.php";
 
 /** Force lowercase, replace spaces/underscores with hyphens, strip non-web-safe chars */
 const toWebSafeSlug = (val: string): string =>
@@ -66,6 +67,7 @@ export interface MediaFile {
   height: number | null;
   alt_text: string;
   caption: string;
+  description?: string;
   url: string;
   url_slug: string | null;
   created_at: string;
@@ -93,6 +95,7 @@ interface PendingFile {
 interface MediaLibraryProps {
   mode?: "page" | "modal";
   onSelect?: (file: MediaFile) => void;
+  uploadPathPrefix?: string;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -295,7 +298,7 @@ const FileDetailsSidebar = ({
   );
 };
 
-const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
+const MediaLibrary = ({ mode = "page", onSelect, uploadPathPrefix = "" }: MediaLibraryProps) => {
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -311,13 +314,26 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
   const [dragOver, setDragOver] = useState(false);
   const [bulkFixing, setBulkFixing] = useState(false);
 
+  const updateLocalMetadata = async (id: string, data: Partial<MediaFile>) => {
+    const response = await fetch(`${LOCAL_MEDIA_API}?action=update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, data }),
+    });
+    if (!response.ok) throw new Error("Failed to update media metadata.");
+  };
+
   const fetchFiles = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("media_files")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setFiles(data as unknown as MediaFile[]);
+    try {
+      const response = await fetch(`${LOCAL_MEDIA_API}?action=list`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to fetch local media files.");
+      const payload = await response.json();
+      setFiles(Array.isArray(payload.files) ? (payload.files as MediaFile[]) : []);
+    } catch {
+      setFiles([]);
+      toast.error("Media API unavailable. Ensure media-local.php is enabled on your server.");
+    }
     setLoading(false);
   }, []);
 
@@ -351,10 +367,10 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
           const file = needsFix.find((f) => f.id === fix.id);
           if (!file) continue;
           const safeSlug = fix.urlSlug?.endsWith(".webp") ? fix.urlSlug : (fix.urlSlug ? toWebSafeSlug(fix.urlSlug.replace(/\.webp$/, "")) + ".webp" : file.url_slug);
-          await supabase.from("media_files").update({
+          await updateLocalMetadata(fix.id, {
             alt_text: fix.altText || file.alt_text,
             url_slug: safeSlug || file.url_slug,
-          } as any).eq("id", fix.id);
+          });
           fixed++;
         }
         toast.success(`Fixed SEO for ${fixed} images!`);
@@ -445,7 +461,8 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
     const safeSlug = pending.urlSlug.endsWith(".webp")
       ? toWebSafeSlug(pending.urlSlug.replace(/\.webp$/, "")) + ".webp"
       : toWebSafeSlug(pending.urlSlug) + ".webp";
-    const storagePath = safeSlug;
+    const cleanPrefix = uploadPathPrefix.replace(/^\/+|\/+$/g, "");
+    const storagePath = cleanPrefix ? `${cleanPrefix}/${safeSlug}` : safeSlug;
     const plainName = pending.fileName; // plain text internal name
 
     setUploading((prev) => [...prev, { id: uploadId, name: plainName, progress: 30 }]);
@@ -454,36 +471,35 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
     try {
       setUploading((prev) => prev.map((u) => (u.id === uploadId ? { ...u, progress: 50 } : u)));
 
-      const { error: uploadError } = await supabase.storage
-        .from("media")
-        .upload(storagePath, pending.webpFile, { contentType: "image/webp" });
+      const formData = new FormData();
+      formData.append("file", pending.webpFile, safeSlug);
+      formData.append("pathPrefix", cleanPrefix);
+      formData.append("slug", safeSlug);
+      formData.append("fileName", plainName);
+      formData.append("altText", pending.altText.trim() || toWebSafeSlug(pending.urlSlug).replace(/-/g, " "));
+      formData.append("caption", pending.caption);
+      formData.append("description", pending.imageDetails);
+      formData.append("width", String(pending.dimensions.width || 0));
+      formData.append("height", String(pending.dimensions.height || 0));
 
-      if (uploadError) throw uploadError;
+      const uploadResponse = await fetch(`${LOCAL_MEDIA_API}?action=upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) throw new Error("Upload failed");
 
       setUploading((prev) => prev.map((u) => (u.id === uploadId ? { ...u, progress: 80 } : u)));
 
-      const { data: urlData } = supabase.storage.from("media").getPublicUrl(storagePath);
-      const finalAlt = pending.altText.trim() || toWebSafeSlug(pending.urlSlug).replace(/-/g, " ");
-
-      await supabase.from("media_files").insert({
-        file_name: plainName,
-        file_path: storagePath,
-        file_size: pending.webpFile.size,
-        mime_type: "image/webp",
-        width: pending.dimensions.width,
-        height: pending.dimensions.height,
-        alt_text: finalAlt,
-        caption: pending.caption,
-        description: pending.imageDetails,
-        url: urlData.publicUrl,
-        url_slug: safeSlug,
-      });
+      const uploadPayload = await uploadResponse.json();
+      if (uploadPayload?.file) {
+        setFiles((prev) => [uploadPayload.file as MediaFile, ...prev]);
+      }
 
       setUploading((prev) => prev.map((u) => (u.id === uploadId ? { ...u, progress: 100 } : u)));
       setTimeout(() => setUploading((prev) => prev.filter((u) => u.id !== uploadId)), 500);
 
       toast.success(`"${plainName}" uploaded successfully.`);
-      fetchFiles();
     } catch (err: any) {
       toast.error(`Failed to upload "${plainName}".`);
       setUploading((prev) => prev.filter((u) => u.id !== uploadId));
@@ -509,10 +525,15 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
   };
 
   const handleDelete = async (id: string) => {
-    const file = files.find((f) => f.id === id);
-    if (!file) return;
-    await supabase.storage.from("media").remove([file.file_path]);
-    await supabase.from("media_files").delete().eq("id", id);
+    const response = await fetch(`${LOCAL_MEDIA_API}?action=delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!response.ok) {
+      toast.error("Failed to delete file.");
+      return;
+    }
     setFiles((prev) => prev.filter((f) => f.id !== id));
     if (selectedId === id) setSelectedId(null);
     setDeleteTarget(null);
@@ -520,11 +541,16 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
   };
 
   const handleBulkDelete = async () => {
-    const toDelete = files.filter((f) => bulkSelected.has(f.id));
-    const paths = toDelete.map((f) => f.file_path);
-    const ids = toDelete.map((f) => f.id);
-    await supabase.storage.from("media").remove(paths);
-    for (const id of ids) await supabase.from("media_files").delete().eq("id", id);
+    const ids = Array.from(bulkSelected);
+    const response = await fetch(`${LOCAL_MEDIA_API}?action=delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+      toast.error("Failed to delete selected files.");
+      return;
+    }
     setFiles((prev) => prev.filter((f) => !bulkSelected.has(f.id)));
     setBulkSelected(new Set());
     setBulkDeleteOpen(false);
@@ -534,7 +560,7 @@ const MediaLibrary = ({ mode = "page", onSelect }: MediaLibraryProps) => {
   };
 
   const saveFileMetadata = async (id: string, data: Partial<MediaFile>) => {
-    await supabase.from("media_files").update(data as any).eq("id", id);
+    await updateLocalMetadata(id, data);
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f)));
   };
 

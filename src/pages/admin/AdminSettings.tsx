@@ -16,6 +16,7 @@ import {
 import { Loader2, Eye, EyeOff, Plus, Edit, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uploadLocalMedia } from "@/lib/localMedia";
 import TrackingPixelsTab from "@/components/admin/TrackingPixelsTab";
 import BrandingSection from "@/components/admin/BrandingSection";
 import ActivityLogsTab from "@/components/admin/ActivityLogsTab";
@@ -88,7 +89,7 @@ const AdminSettings = () => {
       const [settingsRes, methodsRes, countRes, generalRes] = await Promise.all([
         supabase.from("site_settings").select("key, value").in("key", ["cryptomus_api_key", "cryptomus_merchant_id", "binance_pay_id", "binance_qr_url"]),
         supabase.from("payment_methods").select("*").order("sort_order", { ascending: true }),
-        supabase.from("site_settings").select("value").eq("key", "homepage_product_count").single(),
+        supabase.from("site_settings").select("value").eq("key", "homepage_product_count").maybeSingle(),
         supabase.from("site_settings").select("key, value").in("key", ["site_title", "site_description", "contact_email", "whatsapp_number"]),
       ]);
 
@@ -171,7 +172,7 @@ const AdminSettings = () => {
       ].filter((s) => s.value);
 
       for (const setting of settings) {
-        const { data: existing } = await supabase.from("site_settings").select("key").eq("key", setting.key).single();
+        const { data: existing } = await supabase.from("site_settings").select("key").eq("key", setting.key).maybeSingle();
         if (existing) {
           await supabase.from("site_settings").update({ value: setting.value, updated_at: new Date().toISOString() }).eq("key", setting.key);
         } else {
@@ -194,7 +195,7 @@ const AdminSettings = () => {
       ].filter((s) => s.value);
 
       for (const setting of settings) {
-        const { data: existing } = await supabase.from("site_settings").select("key").eq("key", setting.key).single();
+        const { data: existing } = await supabase.from("site_settings").select("key").eq("key", setting.key).maybeSingle();
         if (existing) {
           await supabase.from("site_settings").update({ value: setting.value, updated_at: new Date().toISOString() }).eq("key", setting.key);
         } else {
@@ -412,12 +413,14 @@ const AdminSettings = () => {
                               if (file.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB."); return; }
                               setQrUploading(true);
                               try {
-                                const ext = file.name.split(".").pop();
-                                const path = `binance-qr-${Date.now()}.${ext}`;
-                                const { error: upErr } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-                                if (upErr) throw upErr;
-                                const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
-                                setBinanceQrUrl(urlData.publicUrl);
+                                const uploaded = await uploadLocalMedia({
+                                  file,
+                                  pathPrefix: "payments",
+                                  slug: `binance-qr-${Date.now()}-${file.name}`,
+                                  fileName: "binance qr",
+                                  altText: "binance qr code",
+                                });
+                                setBinanceQrUrl(uploaded.url);
                                 toast.success("QR code uploaded! Click 'Save Payment Settings' to apply.");
                               } catch {
                                 toast.error("Failed to upload QR code.");

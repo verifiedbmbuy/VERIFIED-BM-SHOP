@@ -24,6 +24,38 @@ const DEFAULT_BRANDING: BrandingSettings = {
 
 const DEV_BRANDING_OVERRIDES_KEY = "dev_branding_overrides";
 const DEV_OVERRIDE_DELETED = "__deleted__";
+const MAX_LOCAL_DATA_URL_LENGTH = 350_000;
+const LOCAL_BRANDING_BASE = "/images/logos/";
+
+const stripBrandingPrefixes = (value: string): string => {
+  return value
+    .replace(/^\/+/, "")
+    .replace(/^images\/logos\//, "")
+    .replace(/^branding\//, "")
+    .replace(/^storage\/v1\/object\/public\/branding\//, "");
+};
+
+const normalizeLocalBrandingUrl = (value: string): string => {
+  const localHostPattern = /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i;
+  if (!localHostPattern.test(value)) return value;
+
+  const storageMatch = value.match(/\/storage\/v1\/object\/(public\/)?branding\/([^?]+)/i);
+  if (storageMatch?.[2]) {
+    return `${LOCAL_BRANDING_BASE}${storageMatch[2].split("/").filter(Boolean).pop() || storageMatch[2]}`;
+  }
+
+  const mediaMatch = value.match(/\/admin\/media\/branding\/([^?]+)/i);
+  if (mediaMatch?.[1]) {
+    return `${LOCAL_BRANDING_BASE}${mediaMatch[1].split("/").filter(Boolean).pop() || mediaMatch[1]}`;
+  }
+
+  const fileMatch = value.match(/branding\/([^?]+)/i);
+  if (fileMatch?.[1]) {
+    return `${LOCAL_BRANDING_BASE}${fileMatch[1].split("/").filter(Boolean).pop() || fileMatch[1]}`;
+  }
+
+  return value;
+};
 
 const getDevBrandingOverrides = (): Record<string, string> => {
   if (typeof window === "undefined" || !isLocalProtectedMode) return {};
@@ -31,7 +63,15 @@ const getDevBrandingOverrides = (): Record<string, string> => {
     const raw = window.localStorage.getItem(DEV_BRANDING_OVERRIDES_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const safe: Record<string, string> = {};
+    Object.entries(parsed as Record<string, unknown>).forEach(([k, v]) => {
+      if (typeof v !== "string") return;
+      if (v.startsWith("data:") && v.length > MAX_LOCAL_DATA_URL_LENGTH) return;
+      safe[k] = v;
+    });
+    return safe;
   } catch {
     return {};
   }
@@ -40,23 +80,19 @@ const getDevBrandingOverrides = (): Record<string, string> => {
 /** Ensure a branding URL uses the public endpoint */
 const ensurePublicUrl = (url: string): string => {
   if (!url) return "";
-  const base = url.split("?")[0];
-  if (!base.startsWith("http")) {
-    if (
-      base.startsWith("/admin/media/") ||
-      base.startsWith("admin/media/") ||
-      base.startsWith("/media/") ||
-      base.startsWith("media/") ||
-      base.startsWith("/branding/") ||
-      base.startsWith("branding/")
-    ) {
-      return toBrandedUrl(base);
-    }
-    const { data } = supabase.storage.from("branding").getPublicUrl(base);
-    return toBrandedUrl(data.publicUrl);
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+  const normalized = normalizeLocalBrandingUrl(url);
+  if (normalized !== url) return normalized;
+  if (url.startsWith("/images/logos/")) return url;
+  if (!url.startsWith("http")) {
+    const clean = stripBrandingPrefixes(url);
+    return `${LOCAL_BRANDING_BASE}${clean}`;
   }
-  const fixed = base.includes("/object/public/") ? base : base.replace("/object/", "/object/public/");
-  return toBrandedUrl(fixed);
+  if (url.includes("/storage/v1/object/public/branding/")) {
+    const clean = stripBrandingPrefixes(url.split("/storage/v1/object/public/branding/")[1] || "");
+    return `${LOCAL_BRANDING_BASE}${clean}`;
+  }
+  return url;
 };
 
 const fetchBranding = async (): Promise<BrandingSettings> => {
