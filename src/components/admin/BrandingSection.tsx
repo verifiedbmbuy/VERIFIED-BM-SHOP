@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase, isLocalProtectedMode } from "@/integrations/supabase/client";
-import { convertToWebP, getAdminMediaUrl, toBrandedUrl } from "@/lib/imageUtils";
+import { convertToWebP, getAdminMediaUrl, resolveLegacyBrandingAsset, toBrandedUrl } from "@/lib/imageUtils";
 import { uploadLocalMedia } from "@/lib/localMedia";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, X, Image as ImageIcon, FolderOpen } from "lucide-react";
@@ -54,15 +54,15 @@ const normalizeBrandingUrl = (value: string): string => {
   }
 
   if (value.startsWith("/images/")) {
-    return value;
+    return resolveLegacyBrandingAsset(value);
   }
 
   if (!value.startsWith("http")) {
     const clean = value.replace(/^\/+/, "").replace(/^branding\//, "");
-    return `/images/logos/${clean.split("/").filter(Boolean).pop() || clean}`;
+    return resolveLegacyBrandingAsset(`/images/logos/${clean.split("/").filter(Boolean).pop() || clean}`);
   }
 
-  return value;
+  return resolveLegacyBrandingAsset(value);
 };
 
 const BrandingSection = () => {

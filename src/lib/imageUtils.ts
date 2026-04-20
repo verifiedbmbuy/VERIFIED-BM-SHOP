@@ -12,6 +12,24 @@ const resolveSiteUrl = (): string => {
 const SITE_URL = resolveSiteUrl();
 const LOCAL_IMAGES_PREFIX = `${SITE_URL}/images/`;
 
+const LEGACY_BRANDING_ASSET_MAP: Record<string, string> = {
+  "/images/logos/header_logo.webp": "/images/logos/Verified-bm-shop-logo.png",
+  "/images/logos/footer_logo.webp": "/images/logos/Verified-bm-shop-logo.png",
+  "/images/logos/invoice_logo.webp": "/images/logos/Verified-bm-shop-logo.png",
+  "/images/logos/homepage_hero_logo.webp": "/images/logos/Verified-bm-shop-logo.png",
+  "/images/logos/favicon.webp": "/images/logos/vbb-logo.png",
+};
+
+export const resolveLegacyBrandingAsset = (path: string): string => {
+  if (!path) return path;
+
+  const qIndex = path.indexOf("?");
+  const cleanPath = qIndex >= 0 ? path.slice(0, qIndex) : path;
+  const query = qIndex >= 0 ? path.slice(qIndex) : "";
+
+  return `${LEGACY_BRANDING_ASSET_MAP[cleanPath] || cleanPath}${query}`;
+};
+
 const normalizePath = (path: string) => path.replace(/^(\.\/|\/+)+/, "");
 
 const stripKnownPrefixes = (path: string): string => {
@@ -27,7 +45,7 @@ const stripKnownPrefixes = (path: string): string => {
 export const getAdminMediaUrl = (path: string): string => {
   if (!path) return path;
   const clean = stripKnownPrefixes(path.split("?")[0]);
-  return `${LOCAL_IMAGES_PREFIX}${clean}`;
+  return resolveLegacyBrandingAsset(`${LOCAL_IMAGES_PREFIX}${clean}`);
 };
 
 /**
@@ -42,12 +60,12 @@ export const toBrandedUrl = (url: string): string => {
   const query = qIndex >= 0 ? url.slice(qIndex) : "";
 
   // Keep local public images untouched so static assets from /public/images work in dev and production.
-  if (cleanUrl.startsWith("/images/")) return `${cleanUrl}${query}`;
+  if (cleanUrl.startsWith("/images/")) return resolveLegacyBrandingAsset(`${cleanUrl}${query}`);
 
-  if (cleanUrl.startsWith(LOCAL_IMAGES_PREFIX)) return `${cleanUrl}${query}`;
+  if (cleanUrl.startsWith(LOCAL_IMAGES_PREFIX)) return resolveLegacyBrandingAsset(`${cleanUrl}${query}`);
   if (cleanUrl.startsWith(SITE_URL)) {
     const relative = cleanUrl.substring(SITE_URL.length);
-    if (relative.startsWith("/images/")) return `${cleanUrl}${query}`;
+    if (relative.startsWith("/images/")) return resolveLegacyBrandingAsset(`${cleanUrl}${query}`);
     return `${getAdminMediaUrl(relative)}${query}`;
   }
 
@@ -85,7 +103,7 @@ export const toBrandedUrl = (url: string): string => {
     // Ignore malformed absolute URLs and return as-is below.
   }
 
-  return `${cleanUrl}${query}`;
+  return resolveLegacyBrandingAsset(`${cleanUrl}${query}`);
 };
 
 /**

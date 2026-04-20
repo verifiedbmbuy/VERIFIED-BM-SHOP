@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, isLocalProtectedMode } from "@/integrations/supabase/client";
-import { toBrandedUrl } from "@/lib/imageUtils";
+import { resolveLegacyBrandingAsset, toBrandedUrl } from "@/lib/imageUtils";
 
 export interface BrandingSettings {
   header_logo: string;
@@ -83,16 +83,16 @@ const ensurePublicUrl = (url: string): string => {
   if (url.startsWith("data:") || url.startsWith("blob:")) return url;
   const normalized = normalizeLocalBrandingUrl(url);
   if (normalized !== url) return normalized;
-  if (url.startsWith("/images/logos/")) return url;
+  if (url.startsWith("/images/logos/")) return resolveLegacyBrandingAsset(url);
   if (!url.startsWith("http")) {
     const clean = stripBrandingPrefixes(url);
-    return `${LOCAL_BRANDING_BASE}${clean}`;
+    return resolveLegacyBrandingAsset(`${LOCAL_BRANDING_BASE}${clean}`);
   }
   if (url.includes("/storage/v1/object/public/branding/")) {
     const clean = stripBrandingPrefixes(url.split("/storage/v1/object/public/branding/")[1] || "");
-    return `${LOCAL_BRANDING_BASE}${clean}`;
+    return resolveLegacyBrandingAsset(`${LOCAL_BRANDING_BASE}${clean}`);
   }
-  return url;
+  return resolveLegacyBrandingAsset(url);
 };
 
 const fetchBranding = async (): Promise<BrandingSettings> => {
