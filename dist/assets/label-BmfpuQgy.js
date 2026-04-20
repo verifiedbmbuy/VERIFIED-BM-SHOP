@@ -1,0 +1,1 @@
+import{r,j as t,_ as a}from"./radix-DB4_srnj.js";import{d,bF as i}from"./index-BjiVIRch.js";const l=i("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"),m=r.forwardRef(({className:s,...e},o)=>t.jsx(a,{ref:o,className:d(l(),s),...e}));m.displayName=a.displayName;export{m as L};

@@ -1,0 +1,1 @@
+import{s as a}from"./index-BjiVIRch.js";const u=async(e,r,s,i,l)=>{try{const{data:{user:t}}=await a.auth.getUser();if(!t)return;await a.from("audit_logs").insert({user_id:t.id,user_email:t.email||"",action:e,target_type:r,target_id:s||null,target_title:i||null,details:l||{}})}catch{}};export{u as l};

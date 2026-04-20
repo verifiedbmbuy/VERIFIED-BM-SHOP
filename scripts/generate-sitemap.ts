@@ -112,5 +112,6 @@ async function main() {
 
 main().catch((err) => {
   console.error("❌ Sitemap generation failed:", err);
-  process.exit(1);
+  console.warn("⚠️ Continuing build with existing public/sitemap.xml");
+  process.exit(0);
 });
